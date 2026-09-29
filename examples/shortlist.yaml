@@ -1,0 +1,24 @@
+# shortlist configuration. Every key is optional.
+
+# A command that prints the page at $URL. curl works for Seek and most careers
+# pages; swap in a browser-based fetcher if a site blocks it.
+fetch: curl -sL --max-time 20 -A "Mozilla/5.0" "$URL"
+
+cv:
+  # Your master CV. Each application folder gets a copy; this file is never edited.
+  source: ./cv/cv.md
+  # Runs inside the application folder with $SOURCE and $FOLDER set.
+  # Leave it out and the tailored source file is the deliverable.
+  build: pandoc "$SOURCE" -o cv.pdf
+  artifacts: [cv.pdf]
+
+voice:
+  packs: [voice/default, voice/yours]
+
+evidence:
+  # Directories the verifier may read as ground truth for your claims.
+  repos: []
+
+output:
+  digests: ./digests
+  applications: ./applications

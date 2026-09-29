@@ -1,0 +1,43 @@
+# Who you are and what you are looking for. The cheap filter reads
+# role_shapes, must_have_any, red_flags and locations; the scoring prompt
+# reads candidate.
+
+candidate:
+  name: Sam Rivera
+  location: Wellington, New Zealand
+  summary: >
+    Senior backend engineer, eight years in payments and platform work. Go,
+    TypeScript and Postgres. Wants a senior or staff role on a product team,
+    remote within New Zealand or hybrid in Wellington.
+  comp_floor: NZD 160k base
+
+# Each keyword hit adds the shape's weight. A shape with must_have_signals
+# only counts when one of those words appears too.
+role_shapes:
+  - id: backend
+    keywords: [backend, platform, api, distributed systems, golang]
+    weight: 2
+  - id: senior
+    keywords: [senior, staff, principal, lead]
+    weight: 1
+    must_have_signals: [engineer, developer]
+
+# Every entry must match at least one of its words, or the role is rejected.
+must_have_any:
+  - signal: engineering role
+    any_of: [engineer, developer, programmer]
+
+red_flags: [unpaid, commission only, security clearance required]
+
+locations:
+  reject: [onsite only, relocation required]
+
+# Multiplies the cheap score by source. Board listings are noisier than a
+# company's own ATS.
+source_weights:
+  board: 0.8
+  ats_api: 1.0
+
+boards:
+  # Seek search result URLs. Read the Seek section of the README first.
+  seek: []

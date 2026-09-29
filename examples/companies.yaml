@@ -1,0 +1,14 @@
+# Companies to watch. With a fetcher configured, `shortlist source` fills in
+# ats and slug on the first run; you can also write them yourself.
+- name: GitLab
+  careers_url: https://about.gitlab.com/jobs/
+  ats: greenhouse
+  slug: gitlab
+- name: Linear
+  careers_url: https://linear.app/careers
+  ats: ashby
+  slug: linear
+- name: Cloudflare
+  careers_url: https://www.cloudflare.com/careers/
+  ats: greenhouse
+  slug: cloudflare

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workzag-jobs>
+<position>
+  <id>900001</id>
+  <office>Wellington</office>
+  <additionalOffices><office>Auckland</office></additionalOffices>
+  <department>Engineering</department>
+  <name>Senior Platform Engineer</name>
+  <jobDescriptions>
+    <jobDescription><name>About the role</name><value><![CDATA[<p>We are hiring a senior platform engineer to run our Kubernetes platform, own the deploy pipeline and mentor two engineers.</p>]]></value></jobDescription>
+  </jobDescriptions>
+  <createdAt>2026-09-20T01:00:00+00:00</createdAt>
+</position>
+</workzag-jobs>

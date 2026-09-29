@@ -1,0 +1,33 @@
+{
+  "name": "shortlist-cli",
+  "version": "0.1.0",
+  "description": "Source roles from company ATS boards, tailor a CV and cover letter, and verify every claim in a fresh context.",
+  "license": "Apache-2.0",
+  "author": "Robin Lange",
+  "type": "module",
+  "bin": {
+    "shortlist": "dist/core/src/cli.js"
+  },
+  "files": [
+    "dist/core/src",
+    "prompts",
+    "voice",
+    "adapters",
+    "examples"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p .",
+    "test": "npm run build && node --test dist/core/test/*.test.js"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.11.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^7.0.2"
+  }
+}

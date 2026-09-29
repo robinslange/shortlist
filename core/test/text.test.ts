@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import { ok, strictEqual } from "node:assert/strict";
+import { match, ok, strictEqual } from "node:assert/strict";
 import { decodeEntities, localDate, looksBlocked, slugify, stripHtml } from "../src/text.ts";
 
 test("stripHtml removes markup and decodes entities without gluing words", () => {
@@ -31,4 +31,24 @@ test("localDate formats the local calendar date", () => {
 
 test("slugify never ends on a dash, even when truncation lands on one", () => {
   strictEqual(slugify(`${"a".repeat(59)} b`), "a".repeat(59));
+});
+
+test("a real job ad that mentions human verification is not a bot check", () => {
+  const ad = `<title>Senior Engineer, Bot Management</title><p>${"You will build the systems that verify you are human before checkout. ".repeat(40)}</p>`;
+  strictEqual(looksBlocked(ad), false);
+  ok(looksBlocked("<html><body><p>Please verify you are human by completing the action below.</p></body></html>"));
+});
+
+test("a bare < in text is kept, not treated as the start of a tag", () => {
+  strictEqual(stripHtml("<p>if a < b then c > d</p>"), "if a < b then c > d");
+  strictEqual(stripHtml("5 < 10 years<br>next"), "5 < 10 years\nnext");
+});
+
+test("titles with no Latin letters still get distinct, stable slugs", () => {
+  const a = slugify("シニアエンジニア");
+  const b = slugify("高级工程师");
+  ok(a !== b, `${a} vs ${b}`);
+  ok(a !== "role" && b !== "role");
+  strictEqual(slugify("シニアエンジニア"), a);
+  match(a, /^role-[a-z0-9]+$/);
 });

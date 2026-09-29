@@ -1,5 +1,7 @@
 // Pure text helpers shared by every source and the tailor.
 
+import { createHash } from "node:crypto";
+
 // &amp; goes last so an escaped entity is decoded exactly once.
 const ENTITIES: Array<[RegExp, string]> = [
   [/&nbsp;/g, " "],
@@ -20,7 +22,8 @@ export function stripHtml(html: string): string {
       .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
-      .replace(/<[^>]+>/g, " "),
+      // A tag starts with a letter, / or !; a bare "<" in text is left alone.
+      .replace(/<[/!?]?[a-zA-Z!][^>]*>/g, " "),
   )
     .replace(/[ \t]+/g, " ")
     .replace(/[ \t]*\n[ \t]*/g, "\n")
@@ -28,14 +31,13 @@ export function stripHtml(html: string): string {
     .trim();
 }
 
-const BLOCKED = [
-  /verify you are human/i,
-  /<title>[^<]*access denied/i,
-  /<title>\s*just a moment/i,
-];
+const BLOCKED_TITLES = [/<title>[^<]*access denied/i, /<title>\s*just a moment/i];
 
+// Challenge pages are tiny. A real job ad can say "verify you are human" too
+// (bot-management companies hire), so the phrase only counts on a short page.
 export function looksBlocked(html: string): boolean {
-  return BLOCKED.some((re) => re.test(html));
+  if (BLOCKED_TITLES.some((re) => re.test(html))) return true;
+  return /verify you are human/i.test(html) && stripHtml(html).length < 1500;
 }
 
 export function slugify(s: string): string {
@@ -47,7 +49,10 @@ export function slugify(s: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60)
     .replace(/-+$/, "");
-  return slug || "role";
+  if (slug) return slug;
+  // No Latin letters or digits survive (a title in Japanese, say): a short hash
+  // keeps two such titles apart and stays the same across runs.
+  return /[\p{L}\p{N}]/u.test(s) ? `role-${createHash("sha256").update(s).digest("hex").slice(0, 8)}` : "role";
 }
 
 export function localDate(d: Date): string {

@@ -86,3 +86,29 @@ test("large output survives a pipe: the process does not exit before stdout drai
   strictEqual(r.status, 0, r.stderr);
   ok(r.stdout.includes(rule), `stdout was ${r.stdout.length} chars`);
 });
+
+test("set --force moves a role backwards on purpose", () => {
+  const ws = fresh();
+  writeFileSync(join(ws, "seen.json"), JSON.stringify({ k: { first_seen: "x", last_score: null, verdict: "applied" } }));
+  strictEqual(run(ws, "set", "k", "tailored").status, 3);
+  const forced = run(ws, "set", "k", "tailored", "--force");
+  strictEqual(forced.status, 0, forced.stderr);
+  strictEqual(JSON.parse(readFileSync(join(ws, "seen.json"), "utf8")).k.verdict, "tailored");
+});
+
+test("init into a named directory creates it", () => {
+  const parent = mkdtempSync(join(tmpdir(), "shortlist-initdir-"));
+  const r = run(parent, "init", "search");
+  strictEqual(r.status, 0, r.stderr);
+  ok(existsSync(join(parent, "search", "shortlist.yaml")));
+});
+
+test("help, -h and no arguments all print the overview", () => {
+  const ws = fresh();
+  for (const args of [[], ["help"], ["-h"]]) {
+    const r = run(ws, ...args);
+    strictEqual(r.status, 0, args.join(" "));
+    match(r.stdout, /shortlist init \[dir\]/);
+  }
+  match(run(ws, "digest", "-h").stdout, /^usage: shortlist digest/);
+});

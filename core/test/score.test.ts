@@ -13,7 +13,7 @@ const profile: Profile = {
   role_shapes: [{ id: "eng", keywords: ["engineer"], weight: 1 }],
   must_have_any: [],
   red_flags: ["java"],
-  locations: { reject: [] },
+  locations: { reject: [], accept: [] },
   source_weights: { board: 1, ats_api: 1 },
   boards: { seek: [] },
 };

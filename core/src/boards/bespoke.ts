@@ -3,13 +3,12 @@
 // carry only the link text; `shortlist score` fetches the full page for the
 // ones that survive.
 
-import { slugify, stripHtml } from "../text.ts";
+import { hasTerm, slugify, stripHtml } from "../text.ts";
 import type { RoleRow } from "../types.ts";
 
 const ANCHOR = /<a\b[^>]*?href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
 export function anchorRows(html: string, careersUrl: string, company: string, keywords: string[]): RoleRow[] {
-  const needles = keywords.map((k) => k.toLowerCase());
   const slug = slugify(company);
   const seen = new Set<string>();
   const rows: RoleRow[] = [];
@@ -19,8 +18,7 @@ export function anchorRows(html: string, careersUrl: string, company: string, ke
     if (/^(#|mailto:|tel:|javascript:)/i.test(href)) continue;
     const title = stripHtml(m[2]).replace(/\s+/g, " ");
     if (title.length < 3 || title.length > 120) continue;
-    const lower = title.toLowerCase();
-    if (!needles.some((n) => lower.includes(n))) continue;
+    if (!keywords.some((k) => hasTerm(title, k))) continue;
 
     let url: string;
     try {

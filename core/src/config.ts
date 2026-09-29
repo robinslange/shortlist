@@ -37,7 +37,7 @@ const PROFILE_SCHEMA: Schema = {
   role_shapes: [{ id: null, keywords: null, weight: null, must_have_signals: null }],
   must_have_any: [{ signal: null, any_of: null }],
   red_flags: null,
-  locations: { reject: null },
+  locations: { reject: null, accept: null },
   source_weights: { board: null, ats_api: null },
   boards: { seek: null },
 };
@@ -136,7 +136,7 @@ export function loadProfile(dir: string): Profile {
     role_shapes: shapes,
     must_have_any: raw.must_have_any ?? [],
     red_flags: raw.red_flags ?? [],
-    locations: { reject: raw.locations?.reject ?? [] },
+    locations: { reject: raw.locations?.reject ?? [], accept: raw.locations?.accept ?? [] },
     source_weights: { board: 1, ats_api: 1, ...raw.source_weights },
     boards: { seek },
   };

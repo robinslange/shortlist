@@ -64,7 +64,7 @@ test("profile defaults fill in and partial source weights merge", () => {
   deepStrictEqual(p.source_weights, { board: 0.5, ats_api: 1 });
   deepStrictEqual(p.boards, { seek: [] });
   deepStrictEqual(p.red_flags, []);
-  deepStrictEqual(p.locations, { reject: [] });
+  deepStrictEqual(p.locations, { reject: [], accept: [] });
   strictEqual(p.candidate.name, "");
 });
 
@@ -101,8 +101,8 @@ test("unknown keys are refused one level down, with their dotted path", () => {
     /unknown key "candidate\.salary_floor"/,
   );
   throws(
-    () => loadProfile(workspace({ "profile.yaml": `${PROFILE}locations:\n  accept: [Wellington]\n` })),
-    /unknown key "locations\.accept"/,
+    () => loadProfile(workspace({ "profile.yaml": `${PROFILE}locations:\n  near: [Wellington]\n` })),
+    /unknown key "locations\.near"/,
   );
   throws(() => loadConfig(workspace({ "shortlist.yaml": "cv:\n  biuld: make\n" })), /unknown key "cv\.biuld"/);
 });

@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import { deepStrictEqual } from "node:assert/strict";
+import { deepStrictEqual, strictEqual } from "node:assert/strict";
 import { cheapScore } from "../src/score/cheap.ts";
 import type { Profile, RoleRow } from "../src/types.ts";
 
@@ -11,7 +11,7 @@ const profile: Profile = {
   ],
   must_have_any: [{ signal: "engineering", any_of: ["engineer", "developer"] }],
   red_flags: ["commission only"],
-  locations: { reject: ["sydney"] },
+  locations: { reject: ["sydney"], accept: [] },
   source_weights: { board: 0.5, ats_api: 1 },
   boards: { seek: [] },
 };
@@ -54,4 +54,41 @@ test("a shape's must-have signal gates that shape only", () => {
 
 test("no shape match rejects", () => {
   deepStrictEqual(cheapScore(row({ title: "Office Engineer", jd_text: "Filing." }), profile), { kind: "rejected", reason: "no_role_shape_match" });
+});
+
+const base = (over: Partial<Profile>): Profile => ({ ...profile, must_have_any: [], red_flags: [], locations: { reject: [], accept: [] }, ...over });
+
+test("keywords match whole words, so api does not match capital", () => {
+  const p = base({ role_shapes: [{ id: "api", keywords: ["api"], weight: 1 }] });
+  deepStrictEqual(cheapScore(row({ title: "Capital Markets Analyst", jd_text: "Venture capital." }), p), { kind: "rejected", reason: "no_role_shape_match" });
+  deepStrictEqual(cheapScore(row({ title: "API Engineer", jd_text: "" }), p), { kind: "accepted", score: 1, matched_shapes: ["api"] });  const script = base({ role_shapes: [{ id: "s", keywords: ["script"], weight: 1 }] });
+  deepStrictEqual(cheapScore(row({ title: "JavaScript Developer", jd_text: "" }), script), { kind: "rejected", reason: "no_role_shape_match" });
+});
+
+test("a red flag of java does not reject JavaScript roles", () => {
+  const p = base({ red_flags: ["java"] });
+  strictEqual(cheapScore(row({ jd_text: "Golang and JavaScript." }), p).kind, "accepted");
+  deepStrictEqual(cheapScore(row({ jd_text: "Golang and Java." }), p), { kind: "rejected", reason: "red_flag: java" });
+});
+
+test("a trailing * matches any word that starts with it", () => {
+  const p = base({ role_shapes: [{ id: "eng", keywords: ["engineer*"], weight: 1 }] });
+  deepStrictEqual(cheapScore(row({ title: "Engineering Lead", jd_text: "" }), p), { kind: "accepted", score: 1, matched_shapes: ["eng"] });
+});
+
+test("keywords with symbols still match", () => {
+  const p = base({ role_shapes: [{ id: "cpp", keywords: ["c++", "node.js"], weight: 1 }] });
+  deepStrictEqual(cheapScore(row({ title: "C++ Developer", jd_text: "Some Node.js too." }), p), { kind: "accepted", score: 2, matched_shapes: ["cpp"] });
+});
+
+test("locations.accept keeps only roles whose location names an accepted place", () => {
+  const p = base({ locations: { reject: [], accept: ["new zealand", "wellington"] } });
+  deepStrictEqual(cheapScore(row({ location: "Remote, Canada" }), p), { kind: "rejected", reason: "location_not_accepted: Remote, Canada" });
+  strictEqual(cheapScore(row({ location: "Wellington, NZ" }), p).kind, "accepted");
+  strictEqual(cheapScore(row({ location: "" }), p).kind, "accepted", "an unknown location is not a rejection");
+  deepStrictEqual(
+    cheapScore(row({ location: "Remote, Canada", jd_text: "Golang. We also have a Wellington office." }), p),
+    { kind: "rejected", reason: "location_not_accepted: Remote, Canada" },
+    "a city named in the text does not make the role located there",
+  );
 });

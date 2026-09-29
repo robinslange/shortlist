@@ -59,3 +59,20 @@ export function localDate(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+// Profile terms match whole words, case-insensitively: "api" is not in
+// "capital", "java" is not in "javascript". A trailing * makes a prefix:
+// "engineer*" matches "engineers" and "engineering".
+const TERMS = new Map<string, RegExp>();
+
+export function hasTerm(text: string, term: string): boolean {
+  let re = TERMS.get(term);
+  if (!re) {
+    const t = term.trim().toLowerCase();
+    const prefix = t.endsWith("*");
+    const body = (prefix ? t.slice(0, -1) : t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    re = new RegExp(`(?<![\\p{L}\\p{N}])${body}${prefix ? "" : "(?![\\p{L}\\p{N}])"}`, "iu");
+    TERMS.set(term, re);
+  }
+  return re.test(text);
+}

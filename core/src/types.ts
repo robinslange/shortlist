@@ -35,7 +35,7 @@ export type Profile = {
   role_shapes: RoleShape[];
   must_have_any: Array<{ signal: string; any_of: string[] }>;
   red_flags: string[];
-  locations: { reject: string[] };
+  locations: { reject: string[]; accept: string[] };
   source_weights: { board: number; ats_api: number };
   boards: { seek: string[] };
 };

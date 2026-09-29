@@ -135,3 +135,9 @@ test("parseSeekJob stops at the next marked block even outside a section", () =>
   const html = '<div data-automation="jobAdDetails"><p>Own the payments API.</p></div><div data-automation="company-profile">Example Corp makes invoices.</div>';
   strictEqual(parseSeekJob(html), "Own the payments API.");
 });
+
+test("anchorRows matches whole words and honours a trailing *", () => {
+  const html = '<a href="/1">Engineering Manager</a><a href="/2">Senior Engineer</a>';
+  deepStrictEqual(anchorRows(html, "https://example.test/", "X", ["engineer"]).map((r) => r.title), ["Senior Engineer"]);
+  deepStrictEqual(anchorRows(html, "https://example.test/", "X", ["engineer*"]).map((r) => r.title), ["Engineering Manager", "Senior Engineer"]);
+});

@@ -1,17 +1,24 @@
 // Pure: the deterministic filter. It rejects most roles for free so the model
 // only ever sees the shortlist.
 
+import { hasTerm } from "../text.ts";
 import type { CheapScoreResult, Profile, RoleRow } from "../types.ts";
 
 export function cheapScore(row: RoleRow, profile: Profile): CheapScoreResult {
-  const haystack = `${row.title}\n${row.location}\n${row.jd_text}`.toLowerCase();
-  const has = (s: string) => haystack.includes(s.toLowerCase());
+  const haystack = `${row.title}\n${row.location}\n${row.jd_text}`;
+  const has = (term: string) => hasTerm(haystack, term);
 
   for (const pat of profile.red_flags) {
     if (has(pat)) return { kind: "rejected", reason: `red_flag: ${pat}` };
   }
   for (const loc of profile.locations.reject) {
     if (has(loc)) return { kind: "rejected", reason: `location_reject: ${loc}` };
+  }
+  // Checked against the location alone: a posting that mentions an accepted
+  // city in passing is not located there. An unknown location passes.
+  const { accept } = profile.locations;
+  if (accept.length > 0 && row.location && !accept.some((a) => hasTerm(row.location, a))) {
+    return { kind: "rejected", reason: `location_not_accepted: ${row.location}` };
   }
   for (const must of profile.must_have_any) {
     if (!must.any_of.some(has)) return { kind: "rejected", reason: `missing_must_have: ${must.signal}` };

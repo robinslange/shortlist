@@ -238,3 +238,25 @@ test("a paging ATS that returned everything raises no shortfall note", async () 
   strictEqual(r.rows.length, 1);
   deepStrictEqual(r.summary.errors, []);
 });
+
+test("a company's second ATS board is read as well as its first", async () => {
+  const both: Company = { ...cached, secondary_ats: [{ ats: "lever", slug: "example-limited" }] };
+  const r = await runSource([both], profile(), deps(httpFrom({
+    [GH]: { status: 200, body: raw("greenhouse.json") },
+    "https://api.lever.co/v0/postings/example-limited?mode=json": { status: 200, body: raw("lever.json") },
+  })));
+  deepStrictEqual(r.rows.map((x) => x.source).sort(), ["greenhouse", "lever"]);
+  strictEqual(r.summary.counts.companies, 2);
+});
+
+test("a second ATS found by detection is read in the same run", async () => {
+  const unknown: Company = { name: "Two Boards", careers_url: "https://two.test/careers" };
+  const r = await runSource([unknown], profile(), deps(
+    httpFrom({
+      [GH]: { status: 200, body: raw("greenhouse.json") },
+      "https://api.lever.co/v0/postings/example-limited?mode=json": { status: 200, body: raw("lever.json") },
+    }),
+    pagesFrom({ "https://two.test/careers": '<a href="https://jobs.lever.co/example-limited">A</a><a href="https://job-boards.greenhouse.io/examplecorp/jobs/1">B</a>' }),
+  ));
+  deepStrictEqual(r.rows.map((x) => x.source).sort(), ["greenhouse", "lever"]);
+});

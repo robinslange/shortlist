@@ -41,16 +41,25 @@ export async function runSource(companies: Company[], profile: Profile, deps: So
   const keywords = profile.role_shapes.flatMap((s) => s.keywords);
 
   for (const [index, c] of companies.entries()) {
+    let targets: Target[] = [];
     try {
-      const target = await resolveTarget(c, index, deps, out);
-      const rows =
-        target.ats === "bespoke"
-          ? anchorRows(await page(deps, c.careers_url), c.careers_url, c.name, keywords)
-          : await apiRows(target.ats, { slug: target.slug, company: c.name }, deps, out);
-      out.rows.push(...rows);
-      out.summary.counts.companies += rows.length;
+      targets = await resolveTargets(c, index, deps, out);
     } catch (e) {
       out.summary.errors.push(`${c.name}: ${message(e)}`);
+    }
+    // A careers page can link more than one board; each is read, and one
+    // failing does not lose the others.
+    for (const target of targets) {
+      try {
+        const rows =
+          target.ats === "bespoke"
+            ? anchorRows(await page(deps, c.careers_url), c.careers_url, c.name, keywords)
+            : await apiRows(target.ats, { slug: target.slug, company: c.name }, deps, out);
+        out.rows.push(...rows);
+        out.summary.counts.companies += rows.length;
+      } catch (e) {
+        out.summary.errors.push(`${c.name}: ${message(e)}`);
+      }
     }
     await deps.sleep(politeDelay());
   }
@@ -62,18 +71,15 @@ export async function runSource(companies: Company[], profile: Profile, deps: So
   return out;
 }
 
-async function resolveTarget(
-  c: Company,
-  index: number,
-  deps: SourceDeps,
-  out: SourceResult,
-): Promise<{ ats: AtsKind; slug: string }> {
-  if (c.ats === "bespoke") return { ats: "bespoke", slug: c.slug ?? slugify(c.name) };
-  if (c.ats && c.slug) return { ats: c.ats, slug: c.slug };
+type Target = { ats: AtsKind; slug: string };
+
+async function resolveTargets(c: Company, index: number, deps: SourceDeps, out: SourceResult): Promise<Target[]> {
+  if (c.ats === "bespoke") return [{ ats: "bespoke", slug: c.slug ?? slugify(c.name) }];
+  if (c.ats && c.slug) return [{ ats: c.ats, slug: c.slug }, ...(c.secondary_ats ?? [])];
   const found = detectAts(await page(deps, c.careers_url));
-  if (!found) return { ats: "bespoke", slug: slugify(c.name) };
+  if (!found) return [{ ats: "bespoke", slug: slugify(c.name) }];
   out.detections.push({ index, result: found });
-  return found;
+  return [{ ats: found.ats, slug: found.slug }, ...(found.secondary ?? [])];
 }
 
 async function apiRows(ats: AtsKind, ctx: DispatchCtx, deps: SourceDeps, out: SourceResult): Promise<RoleRow[]> {

@@ -164,7 +164,8 @@ export function normalise(ats: AtsKind, payload: unknown, ctx: DispatchCtx): Rol
       }));
 
     case "lever":
-      return asArray(p).map((j: any) => ({
+      // Lever lists as a bare array; anything else is an error body, not a role.
+      return (Array.isArray(p) ? p : []).map((j: any) => ({
         ...base,
         external_id: `${ctx.slug}:${j.id}`,
         title: j.text ?? "",

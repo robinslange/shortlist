@@ -1,9 +1,10 @@
 import { test } from "node:test";
-import { ok, strictEqual, throws } from "node:assert/strict";
+import { deepStrictEqual, ok, strictEqual, throws } from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   detailEndpoint,
+  listTotal,
   listEndpoint,
   mergeDetail,
   needsHydrate,
@@ -143,4 +144,47 @@ test("an ATS without a detail step passes the row through mergeDetail unchanged"
   const row = rowsFor("ashby", "examplecorp", "ashby.json")[0];
   strictEqual(mergeDetail("ashby", row, { anything: true }), row);
   strictEqual(detailEndpoint("ashby", { slug: "examplecorp", company: "Example Corp" }, row), null);
+});
+
+test("sparse list entries fall back instead of producing undefined fields", () => {
+  const ctx = { slug: "examplecorp", company: "Example Corp" };
+  const ashby = normalise("ashby", { jobs: [{ id: "a1", title: "Engineer", locationName: "Remote" }] }, ctx)[0];
+  strictEqual(ashby.url, "https://jobs.ashbyhq.com/examplecorp/a1");
+  strictEqual(ashby.location, "Remote");
+  strictEqual(ashby.jd_text, "");
+  const lever = normalise("lever", [{ id: "l1", text: "Engineer", description: "<p>Build.</p>" }], ctx)[0];
+  strictEqual(lever.posted_at, undefined);
+  strictEqual(lever.url, "");
+  strictEqual(lever.jd_text, "Build.");
+  const recruitee = normalise("recruitee", { offers: [{ id: 5, title: "Engineer", location: "Remote, EU", careers_apply_url: "https://examplecorp.recruitee.com/o/x/c/new" }] }, ctx)[0];
+  strictEqual(recruitee.location, "Remote, EU");
+  strictEqual(recruitee.url, "https://examplecorp.recruitee.com/o/x/c/new");
+  const workable = normalise("workable", { jobs: [{ title: "Engineer", shortcode: "S1", shortlink: "https://apply.workable.com/j/S1" }] }, ctx)[0];
+  strictEqual(workable.url, "https://apply.workable.com/j/S1");
+  strictEqual(workable.location, "");
+});
+
+test("personio keeps a role whose tenant publishes no description, using its name and department", () => {
+  const xml = "<workzag-jobs><position><id>7</id><office>Wellington</office><department>Engineering</department><name>Platform Engineer</name><jobDescriptions></jobDescriptions></position></workzag-jobs>";
+  const [row] = normalise("personio", xml, { slug: "examplecorp", company: "Example Corp" });
+  strictEqual(row.jd_text, "Platform Engineer Engineering");
+  strictEqual(row.location, "Wellington");
+});
+
+test("empty or unexpected payloads normalise to no rows", () => {
+  const ctx = { slug: "examplecorp", company: "Example Corp" };
+  for (const [ats] of CASES) {
+    if (ats === "workday" || ats === "personio") continue;
+    deepStrictEqual(normalise(ats, {}, ctx), [], ats);
+  }
+  deepStrictEqual(normalise("personio", "<workzag-jobs></workzag-jobs>", ctx), []);
+  deepStrictEqual(normalise("workday", {}, { slug: "a/wd1/b", company: "A" }), []);
+  deepStrictEqual(normalise("bespoke", { jobs: [{ id: 1 }] }, ctx), []);
+});
+
+test("listTotal reads the full count from the two paging ATSes only", () => {
+  strictEqual(listTotal("workday", { total: 386 }), 386);
+  strictEqual(listTotal("smartrecruiters", { totalFound: 219 }), 219);
+  strictEqual(listTotal("workday", {}), null);
+  strictEqual(listTotal("greenhouse", { total: 5 }), null);
 });

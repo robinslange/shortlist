@@ -6,6 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { parse, parseDocument } from "yaml";
+import { ATS_KINDS } from "./types.ts";
 import type { Company, DetectorResult, Profile } from "./types.ts";
 
 export class ConfigError extends Error {}
@@ -151,6 +152,15 @@ export function loadCompanies(dir: string): Company[] {
       throw new ConfigError(`${path}: entry ${i + 1} needs name and careers_url`);
     }
     checkKeys(path, c, COMPANY_SCHEMA, `[${i}]`);
+    const named: Array<[string, unknown]> = [
+      [`[${i}].ats`, c.ats],
+      ...(Array.isArray(c.secondary_ats) ? c.secondary_ats : []).map((s: any, j: number): [string, unknown] => [`[${i}].secondary_ats[${j}].ats`, s?.ats]),
+    ];
+    for (const [where, ats] of named) {
+      if (ats !== undefined && !(ATS_KINDS as readonly unknown[]).includes(ats)) {
+        throw new ConfigError(`${path}: ${where} "${ats}" is not a known ATS. one of: ${ATS_KINDS.join(", ")}`);
+      }
+    }
   });
   return raw;
 }

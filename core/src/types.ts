@@ -1,17 +1,20 @@
 // Shared data shapes. No behaviour.
 
-export type AtsKind =
-  | "ashby"
-  | "lever"
-  | "greenhouse"
-  | "workable"
-  | "bamboohr"
-  | "teamtailor"
-  | "workday"
-  | "smartrecruiters"
-  | "recruitee"
-  | "personio"
-  | "bespoke";
+export const ATS_KINDS = [
+  "ashby",
+  "lever",
+  "greenhouse",
+  "workable",
+  "bamboohr",
+  "teamtailor",
+  "workday",
+  "smartrecruiters",
+  "recruitee",
+  "personio",
+  "bespoke",
+] as const;
+
+export type AtsKind = (typeof ATS_KINDS)[number];
 
 export type DetectorResult = {
   ats: AtsKind;

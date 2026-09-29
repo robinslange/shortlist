@@ -10,7 +10,15 @@ export function applyScores(survivors: Survivor[], scores: ScoreLine[]): { rows:
   const byKey = new Map<string, LlmScore>();
   const problems: string[] = [];
 
-  for (const s of scores) {
+  for (const [i, s] of scores.entries()) {
+    if (s === null || typeof s !== "object") {
+      problems.push(`scores.json entry ${i + 1}: expected an object with key, score and rationale`);
+      continue;
+    }
+    if (typeof s.key !== "string") {
+      problems.push(`scores.json entry ${i + 1}: no key`);
+      continue;
+    }
     if (!keys.has(s.key)) {
       problems.push(`scores.json names ${s.key}, which is not in survivors.json`);
       continue;

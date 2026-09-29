@@ -133,3 +133,14 @@ test("a Seek search that is not an absolute http(s) URL is refused when the prof
   }
   deepStrictEqual(loadProfile(workspace({ "profile.yaml": `${PROFILE}boards:\n  seek: [https://nz.seek.com/x]\n` })).boards.seek, ["https://nz.seek.com/x"]);
 });
+
+test("an ATS name that shortlist does not know is refused, listing the ones it does", () => {
+  throws(
+    () => loadCompanies(workspace({ "companies.yaml": "- name: A\n  careers_url: https://a.test\n  ats: greenhose\n  slug: a\n" })),
+    /\[0\]\.ats "greenhose" is not a known ATS\. one of: ashby, lever, greenhouse/,
+  );
+  throws(
+    () => loadCompanies(workspace({ "companies.yaml": "- name: A\n  careers_url: https://a.test\n  ats: ashby\n  slug: a\n  secondary_ats:\n    - ats: nope\n      slug: a\n" })),
+    /\[0\]\.secondary_ats\[0\]\.ats "nope" is not a known ATS/,
+  );
+});

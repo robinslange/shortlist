@@ -196,3 +196,14 @@ test("applyScores takes 1 and 10 and refuses 0, 11 and fractions", () => {
   deepStrictEqual(rows.map((r) => r.llm_score?.score), [1, 10, undefined, undefined, undefined]);
   strictEqual(problems.length, 3);
 });
+
+test("applyScores reports malformed entries instead of crashing on them", () => {
+  const { rows, problems } = applyScores(
+    [survivor("a")],
+    [null, "8", { score: 8, rationale: "no key" }, { key: "greenhouse:examplecorp:a", score: "8" }] as never,
+  );
+  strictEqual(rows[0].llm_score, undefined);
+  strictEqual(problems.length, 4);
+  ok(problems.slice(0, 3).every((p) => p.startsWith("scores.json entry ")), problems.join(" | "));
+  match(problems[3], /greenhouse:examplecorp:a: score 8 is not an integer from 1 to 10/);
+});

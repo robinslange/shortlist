@@ -112,3 +112,48 @@ test("help, -h and no arguments all print the overview", () => {
   }
   match(run(ws, "digest", "-h").stdout, /^usage: shortlist digest/);
 });
+
+test("--version prints the package version", () => {
+  const r = run(fresh(), "--version");
+  strictEqual(r.status, 0);
+  strictEqual(r.stdout.trim(), JSON.parse(readFileSync(resolve("package.json"), "utf8")).version);
+});
+
+test("names that exist on every object are unknown commands, not crashes", () => {
+  const ws = fresh();
+  for (const name of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+    const r = run(ws, name, "x");
+    strictEqual(r.status, 2, name);
+    match(r.stderr, new RegExp(`unknown command "${name}"`));
+  }
+});
+
+test("init ends by saying what to do next", () => {
+  const r = run(mkdtempSync(join(tmpdir(), "shortlist-next-")), "init");
+  match(r.stdout, /Next:[\s\S]*profile\.yaml[\s\S]*companies\.yaml[\s\S]*shortlist source/);
+});
+
+test("each step run too early names the step to run first", () => {
+  const ws = fresh();
+  match(run(ws, "score").stderr, /candidates\.json not found\. run `shortlist source` first/);
+  match(run(ws, "digest").stderr, /survivors\.json not found\. run `shortlist score` first/);
+  writeFileSync(join(ws, "survivors.json"), "[]");
+  match(run(ws, "digest").stderr, /sources\.json not found\. run `shortlist source` first/);
+});
+
+test("a missing digest or careers file is named plainly", () => {
+  const ws = fresh();
+  const mark = run(ws, "mark", "digests/nope.md");
+  strictEqual(mark.status, 1);
+  match(mark.stderr, /^shortlist: digests\/nope\.md not found/);
+  match(run(ws, "detect-ats", "nope.html").stderr, /^shortlist: nope\.html not found/);
+});
+
+test("set refuses a key it has never seen, so a typo cannot invent a role", () => {
+  const ws = fresh();
+  writeFileSync(join(ws, "seen.json"), JSON.stringify({ "seek:1": { first_seen: "x", last_score: null, verdict: "new" } }));
+  const r = run(ws, "set", "seek:2", "skipped");
+  strictEqual(r.status, 2);
+  match(r.stderr, /no role "seek:2" in seen\.json/);
+  strictEqual(run(ws, "set", "seek:1", "skipped").status, 0);
+});

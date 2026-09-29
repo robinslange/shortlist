@@ -34,6 +34,21 @@ type Command = {
 
 const note = (s: string) => process.stderr.write(s + "\n");
 
+// dist/core/src/cli.js -> package root
+const PKG_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+
+// A file one pipeline step writes for the next. Missing means that step has not run.
+function runFile(ws: string, name: string, step: string): string {
+  const path = join(ws, name);
+  if (!existsSync(path)) throw new Error(`${name} not found. run \`shortlist ${step}\` first.`);
+  return path;
+}
+
+function readText(path: string): string {
+  if (!existsSync(path)) throw new Error(`${path} not found`);
+  return readFileSync(path, "utf8");
+}
+
 const SEEK_NOTICE = `Seek: the board adapter reads Seek's public search and job pages. Seek's
 terms of service restrict automated access. The adapter is here for one person
 looking for their own next job at a human pace, one request every 750-1000ms.
@@ -47,11 +62,20 @@ const COMMANDS: Record<string, Command> = {
     run: async (args, ws) => {
       const dir = resolve(ws, args[0] ?? ".");
       mkdirSync(dir, { recursive: true });
-      // dist/core/src/cli.js -> package root
-      const pkgRoot = fileURLToPath(new URL("../../../", import.meta.url));
-      const { created, skipped } = initWorkspace(pkgRoot, dir);
+      const { created, skipped } = initWorkspace(PKG_ROOT, dir);
       for (const f of created) process.stdout.write(`created ${f}\n`);
       for (const f of skipped) process.stdout.write(`skipped ${f} (exists)\n`);
+      process.stdout.write(
+        [
+          "",
+          `Next:${args[0] ? ` cd ${args[0]}, then` : ""}`,
+          "  1. profile.yaml: who you are and what rules a role in or out",
+          "  2. companies.yaml: the companies you want to work for",
+          "  3. shortlist.yaml: where your CV is and how pages are fetched",
+          "  4. shortlist source, then shortlist score",
+          "",
+        ].join("\n"),
+      );
       return 0;
     },
   },
@@ -83,7 +107,7 @@ const COMMANDS: Record<string, Command> = {
     summary: "Print the ATS and slug a saved careers page links to, as JSON, or null.",
     run: async (args) => {
       if (!args[0]) return usageError("detect-ats <html-file>");
-      process.stdout.write(JSON.stringify(detectAts(readFileSync(args[0], "utf8"))) + "\n");
+      process.stdout.write(JSON.stringify(detectAts(readText(args[0]))) + "\n");
       return 0;
     },
   },
@@ -95,7 +119,7 @@ const COMMANDS: Record<string, Command> = {
       const config = loadConfig(ws);
       const seenPath = join(ws, "seen.json");
       const r = await runScore(
-        readJson<RoleRow[]>(join(ws, "candidates.json")),
+        readJson<RoleRow[]>(runFile(ws, "candidates.json", "source")),
         loadProfile(ws),
         readJson<SeenStore>(seenPath, {}),
         { fetchPage: makeFetcher(config.fetch, ws), sleep, now: new Date() },
@@ -113,12 +137,14 @@ const COMMANDS: Record<string, Command> = {
     summary: "Merge scores.json onto survivors.json and write a dated digest. Prints its path.",
     run: async (_args, ws) => {
       const config = loadConfig(ws);
+      const survivorsPath = runFile(ws, "survivors.json", "score");
+      const sourcesPath = runFile(ws, "sources.json", "source");
       const scoresPath = join(ws, "scores.json");
       if (!existsSync(scoresPath)) {
         note("no scores.json: ranking on cheap scores only. run prompts/01-score.md first for model scores.");
       }
       const { rows, problems } = applyScores(
-        readJson<Survivor[]>(join(ws, "survivors.json")),
+        readJson<Survivor[]>(survivorsPath),
         readJson<ScoreLine[]>(scoresPath, []),
       );
       for (const p of problems) note(`  ${p}`);
@@ -126,7 +152,7 @@ const COMMANDS: Record<string, Command> = {
       const today = localDate(new Date());
       mkdirSync(config.output.digests, { recursive: true });
       const path = digestPath(config.output.digests, today);
-      writeFileSync(path, writeDigest(rows, today, readJson<SourceSummary>(join(ws, "sources.json"))));
+      writeFileSync(path, writeDigest(rows, today, readJson<SourceSummary>(sourcesPath)));
 
       const seenPath = join(ws, "seen.json");
       writeJson(seenPath, recordScores(readJson<SeenStore>(seenPath, {}), rows, new Date()));
@@ -141,7 +167,7 @@ const COMMANDS: Record<string, Command> = {
     run: async (args, ws) => {
       if (!args[0]) return usageError("mark <digest>");
       const seenPath = join(ws, "seen.json");
-      const r = markShortlisted(readJson<SeenStore>(seenPath, {}), shortlistedFrom(readFileSync(args[0], "utf8")), new Date());
+      const r = markShortlisted(readJson<SeenStore>(seenPath, {}), shortlistedFrom(readText(args[0])), new Date());
       writeJson(seenPath, r.store);
       note(`marked ${r.marked} shortlisted` + (r.skipped.length ? `; left alone: ${r.skipped.join(", ")}` : ""));
       return 0;
@@ -218,7 +244,12 @@ const COMMANDS: Record<string, Command> = {
         return 2;
       }
       const seenPath = join(ws, "seen.json");
-      const r = setVerdict(readJson<SeenStore>(seenPath, {}), key, verdict, args.includes("--force"), new Date());
+      const store = readJson<SeenStore>(seenPath, {});
+      if (!Object.hasOwn(store, key)) {
+        note(`no role "${key}" in seen.json. keys come from a digest's <!-- key: ... --> lines or an application's meta.json.`);
+        return 2;
+      }
+      const r = setVerdict(store, key, verdict, args.includes("--force"), new Date());
       if (r.refusedFrom) {
         note(`refusing to move ${key} from ${r.refusedFrom} back to ${verdict}. pass --force if you mean it.`);
         return 3;
@@ -237,7 +268,7 @@ function usageError(usage: string): number {
 
 function overview(): string {
   const lines = Object.values(COMMANDS).map((c) => `  shortlist ${c.usage.padEnd(30)} ${c.summary}`);
-  return `shortlist: find roles, tailor an application, verify every claim.\n\n${lines.join("\n")}\n\nRun \`shortlist <command> --help\` for more.\n`;
+  return `shortlist: find roles, tailor an application, verify every claim.\n\n${lines.join("\n")}\n\nRun \`shortlist <command> --help\` for more, \`shortlist --version\` for the version.\n`;
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -246,8 +277,13 @@ async function main(argv: string[]): Promise<number> {
     process.stdout.write(overview());
     return 0;
   }
-  const pair = b === undefined ? undefined : COMMANDS[`${a} ${b}`];
-  const cmd = pair ?? COMMANDS[a];
+  if (a === "--version" || a === "-v") {
+    process.stdout.write(`${JSON.parse(readFileSync(join(PKG_ROOT, "package.json"), "utf8")).version}\n`);
+    return 0;
+  }
+  const lookup = (name: string) => (Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : undefined);
+  const pair = b === undefined ? undefined : lookup(`${a} ${b}`);
+  const cmd = pair ?? lookup(a);
   const args = pair ? rest : argv.slice(1);
   if (!cmd) {
     note(`shortlist: unknown command "${a}"\n`);

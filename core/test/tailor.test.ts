@@ -150,7 +150,7 @@ test("the evidence bundle copies the inputs and lists the repositories", async (
   writeFileSync(join(dir, "master.md"), "master cv");
   const repo = join(dir, "repo");
   mkdirSync(repo);
-  await runShell("git init -q && git -c user.name=t -c user.email=t@example.test commit -q --allow-empty -m init", {}, repo);
+  await runShell("git init -q && git -c user.name=t -c user.email=t@example.test -c commit.gpgsign=false commit -q --allow-empty -m init", {}, repo);
 
   const { dir: ev, missingRepos } = await bundleEvidence(
     folder,

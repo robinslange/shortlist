@@ -28,3 +28,7 @@ test("slugify makes a folder-safe slug and never returns empty", () => {
 test("localDate formats the local calendar date", () => {
   strictEqual(localDate(new Date(2026, 0, 5, 23, 59)), "2026-01-05");
 });
+
+test("slugify never ends on a dash, even when truncation lands on one", () => {
+  strictEqual(slugify(`${"a".repeat(59)} b`), "a".repeat(59));
+});

@@ -140,6 +140,11 @@ test("a remote string with newlines cannot forge a tick, a key or a url line", (
   ok(!md.includes("\n- [x] tailor"));
 });
 
+test("a key comment counts only as a whole line of its own", () => {
+  const md = ["- [x] tailor", "see <!-- key: seek:9 --> here"].join("\n");
+  deepStrictEqual(shortlistedFrom(md), []);
+});
+
 test("a tick counts only with its key on the very next line", () => {
   const md = ["### A -- B [seek]", "- [x] tailor", "", "<!-- key: seek:1 -->", "- [x] tailor", "<!-- key: seek:2 -->", "- [X] tailor", "<!-- key: seek:3 -->"].join("\n");
   deepStrictEqual(shortlistedFrom(md), [{ key: "seek:2", ticked: true }, { key: "seek:3", ticked: true }]);
@@ -152,4 +157,42 @@ test("ticks read back by key alone, whatever the heading looks like", () => {
   ];
   const md = writeDigest(rows, "2026-09-28", SOURCES).replaceAll("- [ ] tailor", "- [x] tailor");
   deepStrictEqual(shortlistedFrom(md).map((t) => t.key).sort(), ["greenhouse:examplecorp:a", "greenhouse:examplecorp:b"]);
+});
+
+const section = (md: string, heading: string) => {
+  const start = md.indexOf(heading);
+  ok(start >= 0, `no section "${heading}"`);
+  const rest = md.slice(start + heading.length);
+  const end = rest.search(/\n## |<details>|### sources/);
+  return rest.slice(0, end < 0 ? undefined : end);
+};
+
+test("every model score from 1 to 10 lands in exactly its band", () => {
+  const md = writeDigest([10, 7, 6, 5, 4, 1].map((n) => scored(`s${n}`, n)), "2026-09-28", SOURCES);
+  const worth = section(md, "## Worth a look");
+  const border = section(md, "Borderline (score 5-6)");
+  const skip = section(md, "Seen and skipped (score below 5)");
+  for (const [n, where] of [[10, worth], [7, worth], [6, border], [5, border], [4, skip], [1, skip]] as const) {
+    ok(where.includes(`Engineer s${n} --`), `score ${n} not in its band`);
+  }
+});
+
+test("the unscored section is a visible heading, never folded", () => {
+  const md = writeDigest([survivor("a")], "2026-09-28", SOURCES);
+  match(md, /^## Not scored by the model$/m);
+});
+
+test("applyScores takes 1 and 10 and refuses 0, 11 and fractions", () => {
+  const { rows, problems } = applyScores(
+    ["a", "b", "c", "d", "e"].map((id) => survivor(id)),
+    [
+      { key: "greenhouse:examplecorp:a", score: 1, rationale: "" },
+      { key: "greenhouse:examplecorp:b", score: 10, rationale: "" },
+      { key: "greenhouse:examplecorp:c", score: 0, rationale: "" },
+      { key: "greenhouse:examplecorp:d", score: 11, rationale: "" },
+      { key: "greenhouse:examplecorp:e", score: 7.5, rationale: "" },
+    ],
+  );
+  deepStrictEqual(rows.map((r) => r.llm_score?.score), [1, 10, undefined, undefined, undefined]);
+  strictEqual(problems.length, 3);
 });

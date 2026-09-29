@@ -178,3 +178,63 @@ test("an ATS that pages its results says when only the first page was read", asy
   strictEqual(r.rows.length, 1);
   deepStrictEqual(r.summary.errors, ["Workday Co: read 1 of 386 roles; this ATS pages its results and shortlist reads only the first page"]);
 });
+
+test("every Seek search in the profile is read, not just the first", async () => {
+  const a = "https://nz.seek.com/a-jobs";
+  const b = "https://nz.seek.com/b-jobs";
+  const r = await runSource([], profile([a, b]), deps(httpFrom({}), pagesFrom({
+    [a]: seekPage(["1"]), [`${a}?page=2`]: seekPage([]),
+    [b]: seekPage(["2"]), [`${b}?page=2`]: seekPage([]),
+  })));
+  deepStrictEqual(r.rows.map((x) => x.external_id), ["1", "2"]);
+});
+
+test("Seek stops after 25 pages even when every page has results", async () => {
+  const fetched: string[] = [];
+  const endless: Fetcher = async (url) => {
+    fetched.push(url);
+    return seekPage([`id-${fetched.length}`]);
+  };
+  const r = await runSource([], profile(["https://nz.seek.com/engineer-jobs"]), deps(httpFrom({}), endless));
+  strictEqual(fetched.length, 25);
+  strictEqual(r.rows.length, 25);
+});
+
+test("the politeness delay runs between companies and between Seek pages", async () => {
+  const other: Company = { ...cached, name: "Other Co", slug: "other" };
+  const sleeps: number[] = [];
+  const base = "https://nz.seek.com/engineer-jobs";
+  await runSource([cached, other], profile([base]), {
+    http: httpFrom({
+      [GH]: { status: 200, body: raw("greenhouse.json") },
+      "https://boards-api.greenhouse.io/v1/boards/other/jobs?content=true": { status: 200, body: raw("greenhouse.json") },
+    }),
+    fetchPage: pagesFrom({ [base]: seekPage(["1"]), [`${base}?page=2`]: seekPage([]) }),
+    sleep: async (ms) => void sleeps.push(ms),
+  });
+  strictEqual(sleeps.length, 3);
+  ok(sleeps.every((ms) => ms >= 750 && ms < 1000), sleeps.join(","));
+});
+
+test("a company with an ATS but no slug is detected again", async () => {
+  const half: Company = { name: "Half Co", careers_url: "https://half.test/careers", ats: "lever" };
+  const r = await runSource(
+    [half],
+    profile(),
+    deps(
+      httpFrom({ "https://api.lever.co/v0/postings/example-limited?mode=json": { status: 200, body: raw("lever.json") } }),
+      pagesFrom({ "https://half.test/careers": '<a href="https://jobs.lever.co/example-limited">Jobs</a>' }),
+    ),
+  );
+  deepStrictEqual(r.detections, [{ index: 0, result: { ats: "lever", slug: "example-limited" } }]);
+});
+
+test("a paging ATS that returned everything raises no shortfall note", async () => {
+  const sr: Company = { name: "SR Co", careers_url: "https://s.test", ats: "smartrecruiters", slug: "ExampleCorp1" };
+  const r = await runSource([sr], profile(), deps(httpFrom({
+    "https://api.smartrecruiters.com/v1/companies/ExampleCorp1/postings?limit=100": { status: 200, body: raw("smartrecruiters.json") },
+    "https://api.smartrecruiters.com/v1/companies/ExampleCorp1/postings/744000000000001": { status: 200, body: raw("smartrecruiters-detail.json") },
+  })));
+  strictEqual(r.rows.length, 1);
+  deepStrictEqual(r.summary.errors, []);
+});

@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import { deepStrictEqual, strictEqual } from "node:assert/strict";
+import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
 import { detectAts } from "../src/ats/detect.ts";
 
 const CASES: Array<[string, string, { ats: string; slug: string }]> = [
@@ -38,4 +38,13 @@ test("returns null when no signature matches", () => {
 
 test("does not mistake a vendor's own site for a customer board", () => {
   strictEqual(detectAts('<a href="https://www.bamboohr.com/about/">BambooHR</a>'), null);
+});
+
+test("the vendor's app subdomain is not a customer board", () => {
+  strictEqual(detectAts('<a href="https://app.bamboohr.com/login">Sign in</a>'), null);
+});
+
+test("a greenhouse embed path is never read as a board called embed", () => {
+  const found = detectAts('<script src="https://boards.greenhouse.io/embed/job_board?for=examplecorp"></script>');
+  ok(found?.slug !== "embed", JSON.stringify(found));
 });

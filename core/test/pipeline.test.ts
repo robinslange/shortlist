@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import { deepStrictEqual, match, ok, strictEqual } from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -177,6 +177,11 @@ test("a failing CV build exits 1 with the build's own error; no build command is
   match(failed.stderr, /build exited 7:\ntypst said no/);
   match(failed.stderr, /missing artifacts: cv\.out/);
 
+  writeFileSync(join(ws, "shortlist.yaml"), `${FETCH.replace('cp "$SOURCE" cv.out', "true")}`);
+  const quiet = run(ws, "cv", "build", folder);
+  strictEqual(quiet.status, 1, "a build that exits 0 but makes no artifact still fails");
+  match(quiet.stderr, /missing artifacts: cv\.out/);
+
   writeFileSync(join(ws, "shortlist.yaml"), "cv:\n  source: ./cv.md\n");
   const none = run(ws, "cv", "build", folder);
   strictEqual(none.status, 0);
@@ -217,4 +222,14 @@ test("each command's --help prints its usage", () => {
   strictEqual(r.status, 0);
   match(r.stdout, /^usage: shortlist set <key> <verdict> \[--force\]/);
   match(r.stdout, /Verdicts: new, shortlisted/);
+});
+
+test("tailor init refuses a role already tailored on an earlier day", () => {
+  const ws = workspace();
+  const earlier = join(ws, "applications", "2026-01-01-example-corp-senior-backend-engineer");
+  mkdirSync(earlier, { recursive: true });
+  writeFileSync(join(ws, "seen.json"), JSON.stringify({ "seek:90000001": { first_seen: "x", last_score: 8, verdict: "shortlisted", url: "https://nz.seek.com/job/90000001", title: "Senior Backend Engineer", company: "Example Corp", folder: earlier } }));
+  const r = run(ws, "tailor", "init", "seek:90000001");
+  strictEqual(r.status, 1);
+  match(r.stderr, /already tailored at .*2026-01-01-example-corp-senior-backend-engineer/);
 });

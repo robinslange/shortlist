@@ -213,3 +213,13 @@ test("the evidence manifest handles no CV, no title, no repos, and a directory t
   await bundleEvidence(folder, config(dir, { evidence: { repos: [plain] } }));
   match(readFileSync(join(bare.dir, "manifest.md"), "utf8"), new RegExp(`- ${plain} \\(not a git repository\\)`));
 });
+
+test("a configured master CV that has gone missing is left out of the bundle, not fatal", async () => {
+  const dir = tmp();
+  const folder = readyFolder(dir);
+  writeFileSync(join(folder, "cover-letter.md"), "letter");
+  const { dir: ev } = await bundleEvidence(folder, config(dir, { cv: { source: join(dir, "gone.md"), build: null, artifacts: [] } }));
+  ok(existsSync(join(ev, "cv-tailored.md")));
+  ok(!existsSync(join(ev, "cv-master.md")));
+  ok(!readFileSync(join(ev, "manifest.md"), "utf8").includes("cv-master"));
+});

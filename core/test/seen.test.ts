@@ -46,7 +46,8 @@ test("live verdicts never drop", () => {
 test("skipped drops for 30 days, then resurfaces", () => {
   ok(shouldDrop(entry({ verdict: "skipped", skipped_at: daysAgo(29) }), now).drop);
   strictEqual(shouldDrop(entry({ verdict: "skipped", skipped_at: daysAgo(31) }), now).drop, false);
-  strictEqual(shouldDrop(entry({ verdict: "skipped", first_seen: daysAgo(40) }), now).drop, false);
+  strictEqual(shouldDrop(entry({ verdict: "skipped", skipped_at: daysAgo(30) }), now).drop, false);
+  ok(shouldDrop(entry({ verdict: "skipped", first_seen: daysAgo(10) }), now).drop, "falls back to first_seen");
 });
 
 test("regression means moving to an earlier stage", () => {
@@ -106,10 +107,11 @@ test("recordScores keeps a score, skips a low one, and never erases an earlier s
       low_shortlisted: entry({ verdict: "shortlisted" }),
       unscored: entry({ last_score: 6 }),
     },
-    [scoredRow("high", 8), scoredRow("low", 4), scoredRow("low_shortlisted", 2), scoredRow("unscored")],
+    [scoredRow("high", 8), scoredRow("five", 5), scoredRow("low", 4), scoredRow("low_shortlisted", 2), scoredRow("unscored")],
     now,
   );
   deepStrictEqual([store.high.verdict, store.high.last_score, store.high.title], ["new", 8, "Role high"]);
+  strictEqual(store.five.verdict, "new", "5 is borderline, not a skip");
   deepStrictEqual([store.low.verdict, store.low.last_score, store.low.skipped_at], ["skipped", 4, now.toISOString()]);
   strictEqual(store.low_shortlisted.verdict, "shortlisted");
   strictEqual(store.unscored.last_score, 6);

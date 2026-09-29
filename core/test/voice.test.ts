@@ -42,3 +42,10 @@ test("no packs is an empty pack, not an error", () => {
 test("the shipped default pack has six rules", () => {
   strictEqual(readdirSync("voice/default").filter((f) => f.endsWith(".md")).length, 6);
 });
+
+test("rules print in code-point filename order whatever order the directory lists them", () => {
+  const names = ["b.md", "C.md", "10-z.md", "9-a.md", "_x.md", "a.md", "Z.md"];
+  const dir = packDir(Object.fromEntries(names.map((n) => [n, `rule ${n}`])));
+  const printed = voicePack([dir]).text.match(/--- [^/]+\/(.+?) ---/g)!.map((h) => h.replace(/--- [^/]+\/(.+?) ---/, "$1"));
+  deepStrictEqual(printed, [...names].sort());
+});

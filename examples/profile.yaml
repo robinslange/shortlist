@@ -38,9 +38,9 @@ locations:
   # Rejects a role that mentions any of these anywhere in the posting.
   reject: [onsite only, relocation required]
   # Keeps only roles whose location names one of these. A role with no
-  # location given still passes. Add "remote" to keep roles that say only
-  # "Remote", wherever they are.
-  accept: [new zealand, wellington, auckland]
+  # location given still passes. "remote" keeps any role whose location says
+  # Remote, wherever it is based; drop it to see only local roles.
+  accept: [new zealand, wellington, auckland, remote]
 
 # Multiplies the cheap score by source. Board listings are noisier than a
 # company's own ATS.

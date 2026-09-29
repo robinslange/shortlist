@@ -138,3 +138,13 @@ test("score says how many job pages it is about to fetch", async () => {
   );
   deepStrictEqual(lines, ["fetching 2 job pages for full descriptions"]);
 });
+
+test("score counts why roles were filtered, so an empty result explains itself", async () => {
+  const r = await runScore(
+    [row("1", { jd_text: "Java engineer." }), row("2", { jd_text: "More Java." }), row("3", { title: "Designer", jd_text: "Figma." })],
+    profile,
+    {},
+    noFetch,
+  );
+  deepStrictEqual(r.reasons, { "red flag": 2, "no role shape match": 1 });
+});

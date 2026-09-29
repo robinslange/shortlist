@@ -127,6 +127,8 @@ const COMMANDS: Record<string, Command> = {
       writeJson(join(ws, "survivors.json"), r.survivors);
       writeJson(seenPath, r.seen);
       note(`${r.survivors.length} survivors; ${r.dropped} already seen; ${r.filtered} filtered`);
+      const why = Object.entries(r.reasons).sort((a, b) => b[1] - a[1]);
+      if (why.length > 0) note(`  filtered: ${why.map(([reason, n]) => `${n} ${reason}`).join(", ")}`);
       for (const w of r.warnings) note(`  ${w}`);
       return 0;
     },

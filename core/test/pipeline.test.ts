@@ -233,3 +233,10 @@ test("tailor init refuses a role already tailored on an earlier day", () => {
   strictEqual(r.status, 1);
   match(r.stderr, /already tailored at .*2026-01-01-example-corp-senior-backend-engineer/);
 });
+
+test("score prints the filter reasons with their counts", () => {
+  const ws = workspace();
+  run(ws, "source");
+  const r = run(ws, "score");
+  match(r.stderr, /filtered: 1 red flag/);
+});

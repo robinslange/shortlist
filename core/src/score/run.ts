@@ -19,6 +19,8 @@ export type ScoreResult = {
   seen: SeenStore;
   dropped: number;
   filtered: number;
+  // Filtered roles by reason, "red flag" rather than "red_flag: java".
+  reasons: Record<string, number>;
   warnings: string[];
 };
 
@@ -32,8 +34,11 @@ export async function runScore(
   let dropped = 0;
   const warnings: string[] = [];
   const accepted: Survivor[] = [];
+  const reasons: Record<string, number> = {};
 
   const filter = (row: RoleRow, reason: string) => {
+    const kind = reason.split(":")[0].replaceAll("_", " ");
+    reasons[kind] = (reasons[kind] ?? 0) + 1;
     const key = seenKey(row.source, row.external_id);
     if (isRegression(store[key]?.verdict, "filtered_cheap")) return;
     store = mergeInto(store, key, { verdict: "filtered_cheap", reason, url: row.url, title: row.title, company: row.company });
@@ -75,5 +80,5 @@ export async function runScore(
     await deps.sleep(politeDelay());
   }
 
-  return { survivors, seen: store, dropped, filtered: candidates.length - dropped - survivors.length, warnings };
+  return { survivors, seen: store, dropped, filtered: candidates.length - dropped - survivors.length, reasons, warnings };
 }

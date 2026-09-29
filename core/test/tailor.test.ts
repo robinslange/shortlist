@@ -41,6 +41,15 @@ test("--last picks the most recently shortlisted role", () => {
   });
 });
 
+test("--last passes over roles already tailored into a folder and roles without a url", () => {
+  const seen = {
+    ...SEEN,
+    "seek:2": { ...SEEN["seek:2"], folder: "/somewhere/app" },
+    "seek:4": entry({ verdict: "shortlisted", shortlisted_at: "2026-09-27T00:00:00Z" }),
+  };
+  strictEqual(resolveTarget("--last", seen).key, "seek:1");
+});
+
 test("--last with nothing shortlisted explains how to shortlist", () => {
   throws(() => resolveTarget("--last", {}), /shortlist mark/);
 });

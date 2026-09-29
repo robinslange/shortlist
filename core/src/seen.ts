@@ -9,7 +9,7 @@
 
 import type { DigestTick } from "./digest/read.ts";
 import { SEEN_VERDICTS } from "./types.ts";
-import type { SeenEntry, SeenStore, SeenVerdict } from "./types.ts";
+import type { ScoredRow, SeenEntry, SeenStore, SeenVerdict } from "./types.ts";
 
 export const SKIP_EXPIRY_DAYS = 30;
 
@@ -73,7 +73,28 @@ export function shouldDrop(entry: SeenEntry | undefined, now: Date): { drop: boo
       ? { drop: true, reason: `skipped ${Math.floor(ageDays)}d ago` }
       : { drop: false };
   }
+  // The model has judged it and it has been in a digest: it is not new.
+  if (entry.last_score !== null && entry.last_score !== undefined) return { drop: true, reason: "already in a digest" };
   return { drop: false };
+}
+
+// After a digest: remember what was shown and what the model thought of it.
+// A score below 5 is a skip, which expires. A role the model did not score this
+// time keeps whatever score it had.
+export function recordScores(store: SeenStore, rows: ScoredRow[], now: Date): SeenStore {
+  let out = store;
+  for (const r of rows) {
+    const score = r.llm_score?.score;
+    const skip = score !== undefined && score < 5 && !isRegression(out[r.key]?.verdict, "skipped");
+    out = mergeInto(out, r.key, {
+      url: r.url,
+      title: r.title,
+      company: r.company,
+      ...(score !== undefined ? { last_score: score } : {}),
+      ...(skip ? { verdict: "skipped" as const, skipped_at: now.toISOString() } : {}),
+    });
+  }
+  return out;
 }
 
 export function setVerdict(

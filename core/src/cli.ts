@@ -15,7 +15,7 @@ import { readJson, writeJson } from "./files.ts";
 import { initWorkspace } from "./init.ts";
 import { http, makeFetcher, sleep } from "./io.ts";
 import { runScore } from "./score/run.ts";
-import { isVerdict, markShortlisted, mergeInto, setVerdict } from "./seen.ts";
+import { isVerdict, markShortlisted, mergeInto, recordScores, setVerdict } from "./seen.ts";
 import { runSource } from "./source.ts";
 import { buildCv } from "./tailor/build.ts";
 import { bundleEvidence } from "./tailor/evidence.ts";
@@ -102,7 +102,7 @@ const COMMANDS: Record<string, Command> = {
       );
       writeJson(join(ws, "survivors.json"), r.survivors);
       writeJson(seenPath, r.seen);
-      note(`${r.survivors.length} survivors; ${r.dropped} already decided; ${r.filtered} filtered`);
+      note(`${r.survivors.length} survivors; ${r.dropped} already seen; ${r.filtered} filtered`);
       for (const w of r.warnings) note(`  ${w}`);
       return 0;
     },
@@ -129,11 +129,7 @@ const COMMANDS: Record<string, Command> = {
       writeFileSync(path, writeDigest(rows, today, readJson<SourceSummary>(join(ws, "sources.json"))));
 
       const seenPath = join(ws, "seen.json");
-      let store = readJson<SeenStore>(seenPath, {});
-      for (const r of rows) {
-        store = mergeInto(store, r.key, { last_score: r.llm_score?.score ?? null, url: r.url, title: r.title, company: r.company });
-      }
-      writeJson(seenPath, store);
+      writeJson(seenPath, recordScores(readJson<SeenStore>(seenPath, {}), rows, new Date()));
       process.stdout.write(path + "\n");
       return 0;
     },
@@ -169,8 +165,13 @@ const COMMANDS: Record<string, Command> = {
     run: async (args, ws) => {
       if (!args[0]) return usageError("tailor init <url|key|--last>");
       const config = loadConfig(ws);
-      const target = resolveTarget(args[0], readJson<SeenStore>(join(ws, "seen.json"), {}));
+      const seenPath = join(ws, "seen.json");
+      const seen = readJson<SeenStore>(seenPath, {});
+      const target = resolveTarget(args[0], seen);
+      const prior = seen[target.key]?.folder;
+      if (prior && existsSync(prior)) throw new Error(`already tailored at ${prior}. delete the folder to redo.`);
       const folder = await initApplication(target, config, makeFetcher(config.fetch, ws), new Date());
+      writeJson(seenPath, mergeInto(seen, target.key, { folder }));
       if (!config.cv.source) note("no cv.source configured: the folder has the posting but no CV to tailor");
       process.stdout.write(folder + "\n");
       return 0;

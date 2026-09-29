@@ -79,7 +79,7 @@ test("source, score, digest, mark, tailor, build and bundle hand their files to 
 
   const score = run(ws, "score");
   strictEqual(score.status, 0, score.stderr);
-  match(score.stderr, /2 survivors; 0 already decided; 1 filtered/);
+  match(score.stderr, /2 survivors; 0 already seen; 1 filtered/);
   const survivors = json(ws, "survivors.json");
   const seekRole = survivors.find((s: { key: string }) => s.key === "seek:90000001");
   ok(seekRole.jd_text.includes("You will own the payments API."), "board survivor was hydrated from its job page");
@@ -118,9 +118,34 @@ test("source, score, digest, mark, tailor, build and bundle hand their files to 
     ok(existsSync(join(evidence, f)), f);
   }
 
+  const twice = run(ws, "tailor", "init", "seek:90000001");
+  strictEqual(twice.status, 1);
+  match(twice.stderr, /already tailored at .*-example-corp-senior-backend-engineer/);
+
   strictEqual(run(ws, "set", "seek:90000001", "tailored").status, 0);
   const again = run(ws, "score");
-  match(again.stderr, /1 survivors; 1 already decided; 1 filtered/);
+  match(again.stderr, /1 survivors; 1 already seen; 1 filtered/);
+});
+
+test("a second run the same day sends only unseen roles to the model and skips low scores", () => {
+  const ws = workspace();
+  run(ws, "source");
+  run(ws, "score");
+  const keys = json(ws, "survivors.json").map((s: { key: string }) => s.key);
+  const bespoke = keys.find((k: string) => k.startsWith("bespoke:"));
+  writeFileSync(join(ws, "scores.json"), JSON.stringify([
+    { key: "seek:90000001", score: 8, rationale: "fits" },
+    { key: bespoke, score: 2, rationale: "wrong stack" },
+  ]));
+  strictEqual(run(ws, "digest").status, 0);
+  strictEqual(json(ws, "seen.json")[bespoke].verdict, "skipped");
+
+  run(ws, "source");
+  const second = run(ws, "score");
+  match(second.stderr, /0 survivors; 2 already seen; 1 filtered/);
+  writeFileSync(join(ws, "scores.json"), "[]");
+  const digest = run(ws, "digest");
+  match(readFileSync(digest.stdout.trim(), "utf8"), /no new roles since the last run/);
 });
 
 test("digest without scores.json says so and still ranks every survivor", () => {

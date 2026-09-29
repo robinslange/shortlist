@@ -15,7 +15,7 @@ export function resolveTarget(arg: string, seen: SeenStore): TailorTarget {
   if (arg === "--last") {
     const stamp = (k: string) => String(seen[k].shortlisted_at ?? seen[k].first_seen);
     const [key] = Object.keys(seen)
-      .filter((k) => seen[k].verdict === "shortlisted" && seen[k].url)
+      .filter((k) => seen[k].verdict === "shortlisted" && seen[k].url && !seen[k].folder)
       .sort((a, b) => stamp(b).localeCompare(stamp(a)));
     if (!key) {
       throw new Error("nothing is shortlisted. tick `- [ ] tailor` in a digest, then run `shortlist mark <digest>`.");

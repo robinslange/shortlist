@@ -106,3 +106,41 @@ test("parseBody hands personio XML through as text and parses the rest as JSON",
   strictEqual(parseBody("personio", "<x/>"), "<x/>");
   strictEqual((parseBody("ashby", '{"a":1}') as { a: number }).a, 1);
 });
+
+// Detail shapes checked against the live APIs on 2026-09-30.
+test("smartrecruiters detail joins the four ad sections in order and takes the posting url", () => {
+  const row = rowsFor("smartrecruiters", "ExampleCorp1", "smartrecruiters.json")[0];
+  const merged = mergeDetail("smartrecruiters", row, JSON.parse(raw("smartrecruiters-detail.json")));
+  strictEqual(merged.jd_text, "Example Corp builds invoicing software.\n\nYou will run our Kubernetes platform.\n\nGo\nPostgres\n\nHybrid in Wellington.");
+  strictEqual(merged.url, "https://jobs.smartrecruiters.com/ExampleCorp1/744000000000001-senior-platform-engineer");
+});
+
+test("workable detail joins description, requirements and benefits", () => {
+  const row = rowsFor("workable", "example-ltd", "workable.json")[0];
+  const merged = mergeDetail("workable", row, JSON.parse(raw("workable-detail.json")));
+  strictEqual(merged.jd_text, "You will run our Kubernetes platform.\n\nGo\n\nHybrid in Wellington.");
+  strictEqual(merged.url, row.url);
+});
+
+test("workday detail fills the description, the public url and the start date", () => {
+  const row = rowsFor("workday", "examplecorp/wd3/External", "workday.json")[0];
+  const merged = mergeDetail("workday", row, JSON.parse(raw("workday-detail.json")));
+  strictEqual(merged.jd_text, "You will run our Kubernetes platform.\nGo");
+  strictEqual(merged.url, "https://examplecorp.wd3.myworkdayjobs.com/en-US/External/job/Wellington/Senior-Platform-Engineer_JR-1");
+  strictEqual(merged.posted_at, "2026-09-20");
+});
+
+test("a detail payload missing its fields keeps the list row rather than inventing text", () => {
+  for (const [ats, slug, file] of CASES.filter(([a]) => needsHydrate(a))) {
+    const row = rowsFor(ats, slug, file)[0];
+    const merged = mergeDetail(ats, row, {});
+    strictEqual(merged.jd_text, "", ats);
+    strictEqual(merged.url, row.url, ats);
+  }
+});
+
+test("an ATS without a detail step passes the row through mergeDetail unchanged", () => {
+  const row = rowsFor("ashby", "examplecorp", "ashby.json")[0];
+  strictEqual(mergeDetail("ashby", row, { anything: true }), row);
+  strictEqual(detailEndpoint("ashby", { slug: "examplecorp", company: "Example Corp" }, row), null);
+});

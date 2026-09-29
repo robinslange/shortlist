@@ -81,6 +81,15 @@ function mapping(path: string, raw: unknown, schema: Schema): Record<string, any
   return obj as Record<string, any>;
 }
 
+function isWebUrl(s: unknown): boolean {
+  try {
+    const u = new URL(String(s));
+    return (u.protocol === "https:" || u.protocol === "http:") && u.hostname !== "";
+  } catch {
+    return false;
+  }
+}
+
 function expand(dir: string, p: string): string {
   return resolve(dir, p === "~" || p.startsWith("~/") ? join(homedir(), p.slice(1)) : p);
 }
@@ -117,6 +126,10 @@ export function loadProfile(dir: string): Profile {
   if (!Array.isArray(shapes) || shapes.length === 0) {
     throw new ConfigError(`${path}: role_shapes is empty, so every role would be rejected`);
   }
+  const seek: string[] = raw.boards?.seek ?? [];
+  for (const url of seek) {
+    if (!isWebUrl(url)) throw new ConfigError(`${path}: boards.seek entry "${url}" is not an absolute http(s) URL`);
+  }
   return {
     candidate: { name: "", location: "", summary: "", ...raw.candidate },
     role_shapes: shapes,
@@ -124,7 +137,7 @@ export function loadProfile(dir: string): Profile {
     red_flags: raw.red_flags ?? [],
     locations: { reject: raw.locations?.reject ?? [] },
     source_weights: { board: 1, ats_api: 1, ...raw.source_weights },
-    boards: { seek: raw.boards?.seek ?? [] },
+    boards: { seek },
   };
 }
 

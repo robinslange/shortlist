@@ -122,3 +122,14 @@ test("a config that is a list rather than a mapping is refused", () => {
   throws(() => loadConfig(workspace({ "shortlist.yaml": "- fetch\n- cv\n" })), /expected a mapping at the top level/);
   throws(() => loadCompanies(workspace({ "companies.yaml": "name: A\n" })), /expected a list of companies/);
 });
+
+test("a Seek search that is not an absolute http(s) URL is refused when the profile loads", () => {
+  for (const bad of ["nz.seek.com/engineer-jobs", "ftp://nz.seek.com/x", "https://"]) {
+    throws(
+      () => loadProfile(workspace({ "profile.yaml": `${PROFILE}boards:\n  seek: ["${bad}"]\n` })),
+      /boards\.seek entry ".*" is not an absolute http\(s\) URL/,
+      bad,
+    );
+  }
+  deepStrictEqual(loadProfile(workspace({ "profile.yaml": `${PROFILE}boards:\n  seek: [https://nz.seek.com/x]\n` })).boards.seek, ["https://nz.seek.com/x"]);
+});

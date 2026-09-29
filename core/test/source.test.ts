@@ -28,7 +28,7 @@ const pagesFrom = (map: Record<string, string>): Fetcher => async (url) => {
   return map[url];
 };
 
-const deps = (http: Http, fetchPage: Fetcher | null = null) => ({ http, fetchPage, sleep: async () => {} });
+const deps = (http: Http, fetchPage: Fetcher | null = null) => ({ http, fetchPage, sleep: async () => {}, log: () => {} });
 
 const cached: Company = { name: "Example Corp", careers_url: "https://example.test/careers", ats: "greenhouse", slug: "examplecorp" };
 
@@ -212,6 +212,7 @@ test("the politeness delay runs between companies and between Seek pages", async
     }),
     fetchPage: pagesFrom({ [base]: seekPage(["1"]), [`${base}?page=2`]: seekPage([]) }),
     sleep: async (ms) => void sleeps.push(ms),
+    log: () => {},
   });
   strictEqual(sleeps.length, 3);
   ok(sleeps.every((ms) => ms >= 750 && ms < 1000), sleeps.join(","));
@@ -260,4 +261,18 @@ test("a second ATS found by detection is read in the same run", async () => {
     pagesFrom({ "https://two.test/careers": '<a href="https://jobs.lever.co/example-limited">A</a><a href="https://job-boards.greenhouse.io/examplecorp/jobs/1">B</a>' }),
   ));
   deepStrictEqual(r.rows.map((x) => x.source).sort(), ["greenhouse", "lever"]);
+});
+
+test("each company and each Seek search reports its progress as it goes", async () => {
+  const lines: string[] = [];
+  const base = "https://nz.seek.com/engineer-jobs";
+  const broken: Company = { name: "Broken Co", careers_url: "https://b.test", ats: "lever", slug: "broken" };
+  await runSource([cached, broken], profile([base]), {
+    ...deps(
+      httpFrom({ [GH]: { status: 200, body: raw("greenhouse.json") }, "https://api.lever.co/v0/postings/broken?mode=json": { status: 500, body: "" } }),
+      pagesFrom({ [base]: seekPage(["1", "2"]), [`${base}?page=2`]: seekPage([]) }),
+    ),
+    log: (line) => void lines.push(line),
+  });
+  deepStrictEqual(lines, ["Example Corp: 1 role", "Broken Co: HTTP 500", `seek ${base}: 2 roles`]);
 });

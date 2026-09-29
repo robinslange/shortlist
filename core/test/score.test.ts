@@ -31,7 +31,7 @@ const row = (id: string, over: Partial<RoleRow> = {}): RoleRow => ({
 
 const entry = (over: Partial<SeenEntry>): SeenEntry => ({ first_seen: "2026-09-01T00:00:00Z", last_score: null, verdict: "new", ...over });
 
-const noFetch = { fetchPage: null, sleep: async () => {}, now };
+const noFetch = { fetchPage: null, sleep: async () => {}, now, log: () => {} };
 
 test("roles already decided are dropped before scoring", async () => {
   const r = await runScore([row("1"), row("2")], profile, { "greenhouse:examplecorp:1": entry({ verdict: "applied" }) }, noFetch);
@@ -126,4 +126,15 @@ test("a fetch that throws keeps the teaser and records why", async () => {
   );
   strictEqual(r.survivors[0].jd_text, "Engineer teaser.");
   deepStrictEqual(r.warnings, ["seek:1: fetch exited 6: could not resolve host"]);
+});
+
+test("score says how many job pages it is about to fetch", async () => {
+  const lines: string[] = [];
+  await runScore(
+    [row("1"), row("2", { source: "seek", external_id: "2", jd_text: "Engineer" }), row("3", { source: "seek", external_id: "3", jd_text: "Engineer" })],
+    profile,
+    {},
+    { ...noFetch, fetchPage: async () => JOB_PAGE, log: (l) => void lines.push(l) },
+  );
+  deepStrictEqual(lines, ["fetching 2 job pages for full descriptions"]);
 });

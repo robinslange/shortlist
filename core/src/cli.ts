@@ -90,6 +90,7 @@ const COMMANDS: Record<string, Command> = {
         http,
         fetchPage: makeFetcher(config.fetch, ws),
         sleep,
+        log: (line) => note(`  ${line}`),
       });
       saveDetections(ws, result.detections);
       writeJson(join(ws, "candidates.json"), result.rows);
@@ -97,7 +98,6 @@ const COMMANDS: Record<string, Command> = {
       const { counts, errors, stale } = result.summary;
       const perSource = Object.entries(counts).map(([k, n]) => `${k} ${n}`).join(", ");
       note(`${result.rows.length} candidates (${perSource}); ${errors.length} errors; ${stale.length} stale`);
-      for (const e of errors) note(`  ${e}`);
       return 0;
     },
   },
@@ -122,7 +122,7 @@ const COMMANDS: Record<string, Command> = {
         readJson<RoleRow[]>(runFile(ws, "candidates.json", "source")),
         loadProfile(ws),
         readJson<SeenStore>(seenPath, {}),
-        { fetchPage: makeFetcher(config.fetch, ws), sleep, now: new Date() },
+        { fetchPage: makeFetcher(config.fetch, ws), sleep, now: new Date(), log: (line) => note(`  ${line}`) },
       );
       writeJson(join(ws, "survivors.json"), r.survivors);
       writeJson(seenPath, r.seen);

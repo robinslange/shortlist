@@ -12,7 +12,7 @@ import { cheapScore } from "./cheap.ts";
 
 export const MAX_SURVIVORS = 30;
 
-export type ScoreDeps = { fetchPage: Fetcher | null; sleep: (ms: number) => Promise<void>; now: Date };
+export type ScoreDeps = { fetchPage: Fetcher | null; sleep: (ms: number) => Promise<void>; now: Date; log: (line: string) => void };
 
 export type ScoreResult = {
   survivors: Survivor[];
@@ -53,6 +53,9 @@ export async function runScore(
   accepted.sort((a, b) => b.cheap_score - a.cheap_score);
   for (const row of accepted.slice(MAX_SURVIVORS)) filter(row, "over_survivor_cap");
   const survivors = accepted.slice(0, MAX_SURVIVORS);
+
+  const pages = survivors.filter((s) => s.source === "seek" || s.source === "bespoke").length;
+  if (pages > 0 && deps.fetchPage) deps.log(`fetching ${pages} job page${pages === 1 ? "" : "s"} for full descriptions`);
 
   for (const s of survivors) {
     if (s.source !== "seek" && s.source !== "bespoke") continue;

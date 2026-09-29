@@ -15,7 +15,15 @@ import type { AtsKind, Company, DetectorResult, Profile, RoleRow, SourceSummary 
 
 export const SEEK_MAX_PAGES = 25;
 
-export type SourceDeps = { http: Http; fetchPage: Fetcher | null; sleep: (ms: number) => Promise<void> };
+export type SourceDeps = {
+  http: Http;
+  fetchPage: Fetcher | null;
+  sleep: (ms: number) => Promise<void>;
+  // One line per company and per board search, so a long run shows progress.
+  log: (line: string) => void;
+};
+
+const roles = (n: number) => `${n} role${n === 1 ? "" : "s"}`;
 
 export type SourceResult = {
   rows: RoleRow[];
@@ -41,6 +49,9 @@ export async function runSource(companies: Company[], profile: Profile, deps: So
   const keywords = profile.role_shapes.flatMap((s) => s.keywords);
 
   for (const [index, c] of companies.entries()) {
+    const errorsBefore = out.summary.errors.length;
+    const staleBefore = out.summary.stale.length;
+    let found = 0;
     let targets: Target[] = [];
     try {
       targets = await resolveTargets(c, index, deps, out);
@@ -57,10 +68,15 @@ export async function runSource(companies: Company[], profile: Profile, deps: So
             : await apiRows(target.ats, { slug: target.slug, company: c.name }, deps, out);
         out.rows.push(...rows);
         out.summary.counts.companies += rows.length;
+        found += rows.length;
       } catch (e) {
         out.summary.errors.push(`${c.name}: ${message(e)}`);
       }
     }
+    const errors = out.summary.errors.slice(errorsBefore);
+    for (const e of errors) deps.log(e);
+    if (out.summary.stale.length > staleBefore) deps.log(`${c.name}: board not found; blank ats and slug in companies.yaml to detect it again`);
+    else if (found > 0 || errors.length === 0) deps.log(`${c.name}: ${roles(found)}`);
     await deps.sleep(politeDelay());
   }
 
@@ -116,28 +132,35 @@ async function apiRows(ats: AtsKind, ctx: DispatchCtx, deps: SourceDeps, out: So
 }
 
 async function seekRows(urls: string[], deps: SourceDeps, out: SourceResult): Promise<void> {
+  const fail = (line: string) => {
+    out.summary.errors.push(line);
+    deps.log(line);
+  };
   for (const base of urls) {
+    let found = 0;
     for (let n = 1; n <= SEEK_MAX_PAGES; n++) {
       const url = seekPageUrl(base, n);
       let html: string;
       try {
         html = await page(deps, url);
       } catch (e) {
-        out.summary.errors.push(`seek: ${message(e)}`);
+        fail(`seek: ${message(e)}`);
         return;
       }
       const rows = parseSeekSearch(html, url);
       if (rows === null) {
-        out.summary.errors.push(`seek: no results data in ${url}; the page format may have changed`);
+        fail(`seek: no results data in ${url}; the page format may have changed`);
         return;
       }
       if (rows.length === 0) break;
       out.rows.push(...rows);
       out.summary.counts.seek += rows.length;
+      found += rows.length;
       if (n === SEEK_MAX_PAGES) {
-        out.summary.errors.push(`seek: stopped after ${SEEK_MAX_PAGES} pages of ${base}; narrow the search to see the rest`);
+        fail(`seek: stopped after ${SEEK_MAX_PAGES} pages of ${base}; narrow the search to see the rest`);
       }
       await deps.sleep(politeDelay());
     }
+    deps.log(`seek ${base}: ${roles(found)}`);
   }
 }

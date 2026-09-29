@@ -157,3 +157,18 @@ test("set refuses a key it has never seen, so a typo cannot invent a role", () =
   match(r.stderr, /no role "seek:2" in seen\.json/);
   strictEqual(run(ws, "set", "seek:1", "skipped").status, 0);
 });
+
+test("a fresh workspace can tailor straight away: the example CV is in place and no build tool is needed", () => {
+  const ws = fresh();
+  ok(existsSync(join(ws, "cv", "cv.md")));
+  const config = readFileSync(join(ws, "shortlist.yaml"), "utf8").replace(/^fetch: .*$/m, `fetch: cat "${JOB_PAGE}"`);
+  writeFileSync(join(ws, "shortlist.yaml"), config);
+  writeFileSync(join(ws, "seen.json"), JSON.stringify({ "seek:1": { first_seen: "x", last_score: 8, verdict: "shortlisted", url: "https://nz.seek.com/job/1", title: "Senior Backend Engineer", company: "Example Corp" } }));
+  const init = run(ws, "tailor", "init", "--last");
+  strictEqual(init.status, 0, init.stderr);
+  const folder = init.stdout.trim();
+  ok(existsSync(join(folder, "cv.md")));
+  const build = run(ws, "cv", "build", folder);
+  strictEqual(build.status, 0, build.stderr);
+  match(build.stderr, /no cv\.build configured/);
+});

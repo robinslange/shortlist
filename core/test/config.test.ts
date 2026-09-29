@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import { deepStrictEqual, match, strictEqual, throws } from "node:assert/strict";
+import { deepStrictEqual, match, ok, strictEqual, throws } from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -143,4 +143,14 @@ test("an ATS name that shortlist does not know is refused, listing the ones it d
     () => loadCompanies(workspace({ "companies.yaml": "- name: A\n  careers_url: https://a.test\n  ats: ashby\n  slug: a\n  secondary_ats:\n    - ats: nope\n      slug: a\n" })),
     /\[0\]\.secondary_ats\[0\]\.ats "nope" is not a known ATS/,
   );
+});
+
+test("the shipped examples load as they are", () => {
+  const p = loadProfile("examples");
+  ok(p.role_shapes.length > 0);
+  ok(p.locations.accept.length > 0, "the example shows the location filter");
+  ok(loadCompanies("examples").length > 0);
+  const c = loadConfig("examples");
+  strictEqual(c.cv.build, null, "the example needs no build tool installed");
+  ok(c.cv.source?.endsWith("cv/cv.md"));
 });

@@ -1,16 +1,20 @@
 # shortlist configuration. Every key is optional.
 
 # A command that prints the page at $URL. curl works for Seek and most careers
-# pages; swap in a browser-based fetcher if a site blocks it.
+# pages; swap in a browser-based fetcher if a site blocks it. It gets 60
+# seconds per page.
 fetch: curl -sL --max-time 20 -A "Mozilla/5.0" "$URL"
 
 cv:
-  # Your master CV. Each application folder gets a copy; this file is never edited.
+  # Your master CV. Each application folder gets a copy; this file is never
+  # edited. Replace the example with your own, in any text format.
   source: ./cv/cv.md
-  # Runs inside the application folder with $SOURCE and $FOLDER set.
-  # Leave it out and the tailored source file is the deliverable.
-  build: pandoc "$SOURCE" -o cv.pdf
-  artifacts: [cv.pdf]
+  # Optional: a command that builds the tailored CV. It runs inside the
+  # application folder with $SOURCE and $FOLDER set. Without it, the tailored
+  # source file is the deliverable. Two examples:
+  #   build: pandoc "$SOURCE" -o cv.pdf        (Markdown, needs pandoc)
+  #   build: typst compile "$SOURCE" cv.pdf    (Typst)
+  # artifacts: [cv.pdf]
 
 voice:
   packs: [voice/default, voice/yours]

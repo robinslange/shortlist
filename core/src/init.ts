@@ -4,7 +4,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 
-const SHIPPED = ["examples/shortlist.yaml", "examples/profile.yaml", "examples/companies.yaml", "prompts", "voice"];
+const SHIPPED = ["examples/shortlist.yaml", "examples/profile.yaml", "examples/companies.yaml", "examples/cv", "prompts", "voice"];
 
 function walk(path: string): string[] {
   if (!statSync(path).isDirectory()) return [path];

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 export function readJson<T>(path: string, fallback?: T): T {
@@ -13,7 +13,11 @@ export function readJson<T>(path: string, fallback?: T): T {
   }
 }
 
+// Write then rename: a crash mid-write leaves the old file whole, never a
+// half-written seen.json that every later command would fail to parse.
 export function writeJson(path: string, value: unknown): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(value, null, 2) + "\n");
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n");
+  renameSync(tmp, path);
 }

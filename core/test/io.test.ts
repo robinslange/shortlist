@@ -71,3 +71,15 @@ test("http sends method, headers and body, and returns status and text for any s
     server.close();
   }
 });
+
+test("a command that hangs is stopped at its timeout, along with anything it started", async () => {
+  const started = Date.now();
+  const r = await runShell("sleep 30 & sleep 30", {}, tmp(), 300);
+  strictEqual(r.timedOut, true);
+  ok(Date.now() - started < 5000, `took ${Date.now() - started}ms`);
+});
+
+test("a fetch that hangs fails with a timeout message", async () => {
+  const fetchPage = makeFetcher("sleep 30", tmp(), 300)!;
+  await rejects(fetchPage("https://x.test"), /fetch timed out after 0\.3s/);
+});

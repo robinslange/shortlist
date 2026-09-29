@@ -198,6 +198,7 @@ test("Seek stops after 25 pages even when every page has results", async () => {
   const r = await runSource([], profile(["https://nz.seek.com/engineer-jobs"]), deps(httpFrom({}), endless));
   strictEqual(fetched.length, 25);
   strictEqual(r.rows.length, 25);
+  deepStrictEqual(r.summary.errors, ["seek: stopped after 25 pages of https://nz.seek.com/engineer-jobs; narrow the search to see the rest"]);
 });
 
 test("the politeness delay runs between companies and between Seek pages", async () => {

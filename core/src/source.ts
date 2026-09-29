@@ -134,6 +134,9 @@ async function seekRows(urls: string[], deps: SourceDeps, out: SourceResult): Pr
       if (rows.length === 0) break;
       out.rows.push(...rows);
       out.summary.counts.seek += rows.length;
+      if (n === SEEK_MAX_PAGES) {
+        out.summary.errors.push(`seek: stopped after ${SEEK_MAX_PAGES} pages of ${base}; narrow the search to see the rest`);
+      }
       await deps.sleep(politeDelay());
     }
   }

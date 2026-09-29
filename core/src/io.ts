@@ -7,26 +7,46 @@
 import { spawn } from "node:child_process";
 import type { Endpoint } from "./ats/dispatch.ts";
 
-export type ShellResult = { code: number; stdout: string; stderr: string };
+export type ShellResult = { code: number; stdout: string; stderr: string; timedOut: boolean };
 
-export function runShell(cmd: string, env: Record<string, string>, cwd: string): Promise<ShellResult> {
+// With a timeout, the command runs in its own process group so a hung fetcher
+// and anything it spawned are all stopped, not just the shell.
+export function runShell(cmd: string, env: Record<string, string>, cwd: string, timeoutMs?: number): Promise<ShellResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn("sh", ["-c", cmd], { cwd, env: { ...process.env, ...env } });
+    const child = spawn("sh", ["-c", cmd], { cwd, env: { ...process.env, ...env }, detached: timeoutMs !== undefined });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            timedOut = true;
+            try {
+              process.kill(-child.pid!, "SIGKILL");
+            } catch {
+              // already gone
+            }
+          }, timeoutMs);
     child.stdout.on("data", (d) => (stdout += d));
     child.stderr.on("data", (d) => (stderr += d));
     child.on("error", reject);
-    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? 1, stdout, stderr, timedOut });
+    });
   });
 }
 
 export type Fetcher = (url: string) => Promise<string>;
 
-export function makeFetcher(command: string | null, cwd: string): Fetcher | null {
+export const FETCH_TIMEOUT_MS = 60_000;
+
+export function makeFetcher(command: string | null, cwd: string, timeoutMs = FETCH_TIMEOUT_MS): Fetcher | null {
   if (!command) return null;
   return async (url) => {
-    const r = await runShell(command, { URL: url }, cwd);
+    const r = await runShell(command, { URL: url }, cwd, timeoutMs);
+    if (r.timedOut) throw new Error(`fetch timed out after ${timeoutMs / 1000}s`);
     if (r.code !== 0) throw new Error(`fetch exited ${r.code}: ${r.stderr.trim().slice(0, 200)}`);
     return r.stdout;
   };

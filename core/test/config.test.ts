@@ -117,3 +117,8 @@ test("unknown keys inside list entries are refused with their position", () => {
     /unknown key "\[0\]\.atss"/,
   );
 });
+
+test("a config that is a list rather than a mapping is refused", () => {
+  throws(() => loadConfig(workspace({ "shortlist.yaml": "- fetch\n- cv\n" })), /expected a mapping at the top level/);
+  throws(() => loadCompanies(workspace({ "companies.yaml": "name: A\n" })), /expected a list of companies/);
+});

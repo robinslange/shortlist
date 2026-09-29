@@ -110,3 +110,18 @@ test("markShortlisted stamps ticks and never walks a role back", () => {
 test("applyScores refuses a scores.json that is not an array", () => {
   throws(() => applyScores([survivor("a")], { scores: [] } as never), /scores\.json must be an array of \{key, score, rationale\}/);
 });
+
+test("a row shows its pay when known, says when location is missing, and seek rows carry no slug badge", () => {
+  const row: ScoredRow = {
+    ...survivor("s"),
+    source: "seek",
+    external_id: "90000001",
+    key: "seek:90000001",
+    location: "",
+    comp_text: "$150k to $170k",
+    llm_score: { score: 8, rationale: "fits", red_flags_spotted: [] },
+  };
+  const md = writeDigest([row], "2026-09-28", SOURCES);
+  match(md, /### Engineer s -- Example Corp \[seek\]\n/);
+  match(md, /- location not given -- \$150k to \$170k/);
+});

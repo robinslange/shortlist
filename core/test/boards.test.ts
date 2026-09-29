@@ -111,3 +111,17 @@ test("anchorRows keeps role links, drops the rest, and makes urls absolute", () 
     },
   ]);
 });
+
+test("anchorRows skips a link whose href is not a valid URL", () => {
+  deepStrictEqual(anchorRows('<a href="http://[broken">Senior Engineer</a>', "https://example.test/careers", "Example Corp", ["engineer"]), []);
+});
+
+test("parseSeekSearch skips entries without an id or a title", () => {
+  const rows = parseSeekSearch(searchPage([{ title: "No id" }, { id: "5" }, { id: "6", title: "  " }, JOB]), "https://nz.seek.com/x")!;
+  deepStrictEqual(rows.map((r) => r.external_id), ["90000001"]);
+});
+
+test("parseSeekSearch reads the blob when the script closes on the same line", () => {
+  const html = `<script>window.SEEK_REDUX_DATA = ${JSON.stringify({ results: { results: { jobs: [JOB] } } })};</script>`;
+  strictEqual(parseSeekSearch(html, "https://nz.seek.com/x")!.length, 1);
+});

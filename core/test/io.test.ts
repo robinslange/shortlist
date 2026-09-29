@@ -40,3 +40,34 @@ test("the politeness delay stays within 750 to 1000ms", () => {
     ok(d >= 750 && d < 1000, `delay ${d}`);
   }
 });
+
+test("http sends method, headers and body, and returns status and text for any status", async () => {
+  const { createServer } = await import("node:http");
+  const seen: Array<{ method?: string; type?: string; body: string }> = [];
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (d) => (body += d));
+    req.on("end", () => {
+      seen.push({ method: req.method, type: req.headers["content-type"], body });
+      res.statusCode = req.url === "/missing" ? 404 : 200;
+      res.end(req.url === "/missing" ? "gone" : '{"ok":true}');
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  try {
+    const { http } = await import("../src/io.ts");
+    const post = await http({ url: `${base}/jobs`, method: "POST", headers: { "content-type": "application/json" }, body: '{"limit":20}' });
+    strictEqual(post.status, 200);
+    strictEqual(post.body, '{"ok":true}');
+    const missing = await http({ url: `${base}/missing` });
+    strictEqual(missing.status, 404);
+    strictEqual(missing.body, "gone");
+    strictEqual(seen[0].method, "POST");
+    strictEqual(seen[0].type, "application/json");
+    strictEqual(seen[0].body, '{"limit":20}');
+    strictEqual(seen[1].method, "GET");
+  } finally {
+    server.close();
+  }
+});

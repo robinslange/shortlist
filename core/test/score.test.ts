@@ -105,3 +105,25 @@ test("a bot-check page never replaces the teaser", async () => {
   strictEqual(r.survivors[0].jd_text, "Engineer teaser.");
   deepStrictEqual(r.warnings, ["seek:1: blocked at https://example.test/1 (bot check), scoring on the teaser"]);
 });
+
+test("a job page with no readable text keeps the teaser and says so", async () => {
+  const r = await runScore(
+    [row("1", { source: "bespoke", external_id: "examplecorp:https://example.test/1", jd_text: "Engineer" })],
+    profile,
+    {},
+    { ...noFetch, fetchPage: async () => "<script>app()</script>" },
+  );
+  strictEqual(r.survivors[0].jd_text, "Engineer");
+  deepStrictEqual(r.warnings, ["bespoke:examplecorp:https://example.test/1: the job page had no readable text"]);
+});
+
+test("a fetch that throws keeps the teaser and records why", async () => {
+  const r = await runScore(
+    [row("1", { source: "seek", external_id: "1", jd_text: "Engineer teaser." })],
+    profile,
+    {},
+    { ...noFetch, fetchPage: async () => { throw new Error("fetch exited 6: could not resolve host"); } },
+  );
+  strictEqual(r.survivors[0].jd_text, "Engineer teaser.");
+  deepStrictEqual(r.warnings, ["seek:1: fetch exited 6: could not resolve host"]);
+});

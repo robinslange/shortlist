@@ -157,3 +157,50 @@ test("the evidence bundle copies the inputs and lists the repositories", async (
   match(manifest, new RegExp(`- ${repo} \\(HEAD [0-9a-f]{7,} \\d{4}-\\d{2}-\\d{2}\\)`));
   match(manifest, /\(MISSING\)/);
 });
+
+test("a target without title or company still gets a snapshot heading, and no CV is fine", async () => {
+  const dir = tmp();
+  const folder = await initApplication({ key: "url:https://jobs.example.test/9", url: "https://jobs.example.test/9" }, config(dir), async () => "<p>Build things.</p>", now);
+  strictEqual(folder, join(dir, "applications", "2026-09-28-jobs-example-test"));
+  ok(readFileSync(join(folder, "jd-snapshot.md"), "utf8").startsWith("# https://jobs.example.test/9\n"));
+  strictEqual(JSON.parse(readFileSync(join(folder, "meta.json"), "utf8")).cv_source, null);
+
+  const titled = await initApplication({ key: "k", url: "https://jobs.example.test/10", title: "Platform Engineer" }, config(dir), async () => "<p>Run it.</p>", now);
+  ok(readFileSync(join(titled, "jd-snapshot.md"), "utf8").startsWith("# Platform Engineer\n"));
+});
+
+test("a page with no readable text fails the init and leaves no folder", async () => {
+  const dir = tmp();
+  await rejects(initApplication(resolveTarget("seek:2", SEEN), config(dir), async () => "<script>app()</script>", now), /had no readable text/);
+  ok(!existsSync(join(dir, "applications")));
+});
+
+test("with no CV in the folder the build still runs, with SOURCE empty", async () => {
+  const dir = tmp();
+  const folder = join(dir, "app");
+  mkdirSync(folder);
+  writeFileSync(join(folder, "meta.json"), JSON.stringify({ key: "k", url: "https://x.test", cv_source: null, created: "x" }));
+  const r = await buildCv(folder, config(dir, { cv: { source: null, build: 'printf "[%s]" "$SOURCE" > out.txt', artifacts: [] } }));
+  strictEqual(r.code, 0);
+  strictEqual(readFileSync(join(folder, "out.txt"), "utf8"), "[]");
+});
+
+test("the evidence manifest handles no CV, no title, no repos, and a directory that is not a git repository", async () => {
+  const dir = tmp();
+  const folder = join(dir, "app");
+  mkdirSync(folder);
+  writeFileSync(join(folder, "meta.json"), JSON.stringify({ key: "k", url: "https://x.test/1", cv_source: null, created: "x" }));
+  writeFileSync(join(folder, "cover-letter.md"), "letter");
+  writeFileSync(join(folder, "jd-snapshot.md"), "posting");
+
+  const bare = await bundleEvidence(folder, config(dir));
+  const manifest = readFileSync(join(bare.dir, "manifest.md"), "utf8");
+  match(manifest, /Role: unknown/);
+  match(manifest, /None\. Only the master CV counts as ground truth\./);
+  ok(!manifest.includes("cv-tailored"));
+
+  const plain = join(dir, "plain");
+  mkdirSync(plain);
+  await bundleEvidence(folder, config(dir, { evidence: { repos: [plain] } }));
+  match(readFileSync(join(bare.dir, "manifest.md"), "utf8"), new RegExp(`- ${plain} \\(not a git repository\\)`));
+});

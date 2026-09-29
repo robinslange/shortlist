@@ -1,41 +1,19 @@
-// Pure: read a digest back. Each role block ends with its key comment.
+// Pure: read a digest back. The writer emits each role's tick box with its
+// key comment on the very next line, so only that exact pair counts. Nothing
+// else in the digest is parsed: titles and urls live in seen.json already.
 
-export type DigestTick = { key: string; title: string; url?: string; ticked: boolean };
+export type DigestTick = { key: string; ticked: boolean };
 
-const KEY = /<!--\s*key:\s*(.+?)\s*-->/;
 const TICK = /^- \[([ xX])\] tailor\s*$/;
-const HEADING = /^### (.+?)\s+--\s+(.+?)\s+\[/;
-const URL_LINE = /^- (https?:\/\/\S+)\s*$/;
+const KEY = /^<!-- key: (.+) -->\s*$/;
 
 export function readDigest(markdown: string): DigestTick[] {
+  const lines = markdown.split("\n");
   const out: DigestTick[] = [];
-  let title = "";
-  let url: string | undefined;
-  let ticked: boolean | undefined;
-
-  for (const line of markdown.split("\n")) {
-    const h = line.match(HEADING);
-    if (h) {
-      title = h[1];
-      url = undefined;
-      ticked = undefined;
-      continue;
-    }
-    const u = line.match(URL_LINE);
-    if (u) {
-      url = u[1];
-      continue;
-    }
-    const t = line.match(TICK);
-    if (t) {
-      ticked = t[1].toLowerCase() === "x";
-      continue;
-    }
-    const k = line.match(KEY);
-    if (k && ticked !== undefined) {
-      out.push({ key: k[1], title, url, ticked });
-      ticked = undefined;
-    }
+  for (let i = 1; i < lines.length; i++) {
+    const t = lines[i - 1].match(TICK);
+    const k = lines[i].match(KEY);
+    if (t && k) out.push({ key: k[1], ticked: t[1].toLowerCase() === "x" });
   }
   return out;
 }

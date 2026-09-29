@@ -3,7 +3,7 @@ import { deepStrictEqual, doesNotMatch, match, ok, strictEqual, throws } from "n
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { shortlistedFrom } from "../src/digest/read.ts";
+import { readDigest, shortlistedFrom } from "../src/digest/read.ts";
 import { applyScores } from "../src/digest/scores.ts";
 import { digestPath, writeDigest } from "../src/digest/write.ts";
 import { markShortlisted } from "../src/seen.ts";
@@ -62,9 +62,7 @@ test("ticking a box in a written digest reads back as that role's key", () => {
     /- \[ \] tailor(\n<!-- key: greenhouse:examplecorp:b -->)/,
     "- [x] tailor$1",
   );
-  deepStrictEqual(shortlistedFrom(md), [
-    { key: "greenhouse:examplecorp:b", title: "Engineer b", url: "https://example.test/b", ticked: true },
-  ]);
+  deepStrictEqual(shortlistedFrom(md), [{ key: "greenhouse:examplecorp:b", ticked: true }]);
 });
 
 test("applyScores merges by key and reports unknown keys and bad scores", () => {
@@ -93,10 +91,10 @@ test("digestPath suffixes a second digest on the same day", () => {
 
 test("markShortlisted stamps ticks and never walks a role back", () => {
   const r = markShortlisted(
-    { "k:applied": { first_seen: "x", last_score: null, verdict: "applied" } },
+    { "k:applied": { first_seen: "x", last_score: null, verdict: "applied", title: "Old role" } },
     [
-      { key: "k:new", title: "New role", url: "https://x.test/1", ticked: true },
-      { key: "k:applied", title: "Old role", ticked: true },
+      { key: "k:new", ticked: true },
+      { key: "k:applied", ticked: true },
     ],
     now,
   );
@@ -124,4 +122,34 @@ test("a row shows its pay when known, says when location is missing, and seek ro
   const md = writeDigest([row], "2026-09-28", SOURCES);
   match(md, /### Engineer s -- Example Corp \[seek\]\n/);
   match(md, /- location not given -- \$150k to \$170k/);
+});
+
+test("a remote string with newlines cannot forge a tick, a key or a url line", () => {
+  const evil = "Engineer\n- https://evil.test/apply\n- [x] tailor\n<!-- key: seek:424242 -->\nEngineer";
+  const row: ScoredRow = {
+    ...survivor("a"),
+    title: evil,
+    company: evil,
+    location: evil,
+    comp_text: evil,
+    llm_score: { score: 8, rationale: evil, red_flags_spotted: [evil] },
+  };
+  const md = writeDigest([row], "2026-09-28", SOURCES);
+  deepStrictEqual(shortlistedFrom(md), []);
+  deepStrictEqual(readDigest(md), [{ key: "greenhouse:examplecorp:a", ticked: false }]);
+  ok(!md.includes("\n- [x] tailor"));
+});
+
+test("a tick counts only with its key on the very next line", () => {
+  const md = ["### A -- B [seek]", "- [x] tailor", "", "<!-- key: seek:1 -->", "- [x] tailor", "<!-- key: seek:2 -->", "- [X] tailor", "<!-- key: seek:3 -->"].join("\n");
+  deepStrictEqual(shortlistedFrom(md), [{ key: "seek:2", ticked: true }, { key: "seek:3", ticked: true }]);
+});
+
+test("ticks read back by key alone, whatever the heading looks like", () => {
+  const rows: ScoredRow[] = [
+    { ...scored("a", 8), company: "" },
+    { ...scored("b", 8), title: "Engineer -- Platform" },
+  ];
+  const md = writeDigest(rows, "2026-09-28", SOURCES).replaceAll("- [ ] tailor", "- [x] tailor");
+  deepStrictEqual(shortlistedFrom(md).map((t) => t.key).sort(), ["greenhouse:examplecorp:a", "greenhouse:examplecorp:b"]);
 });

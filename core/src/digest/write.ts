@@ -39,22 +39,27 @@ function section(lines: string[], title: string, rows: ScoredRow[], folded: bool
   if (folded) lines.push("</details>", "");
 }
 
+// Every string here comes from a job board or a model. Flattened to one line,
+// none of them can start a line of its own, so none can forge a tick box or a
+// key comment for `shortlist mark` to read back.
+const flat = (s: string) => s.replace(/\s+/g, " ").trim();
+
 function renderRow(r: ScoredRow): string[] {
   const slug = r.source === "seek" ? "" : r.external_id.split(":")[0];
-  const badge = `[${r.source}${slug ? ":" + slug : ""}]`;
-  const comp = r.comp_text ? ` -- ${r.comp_text}` : "";
+  const badge = `[${r.source}${slug ? ":" + flat(slug) : ""}]`;
+  const comp = r.comp_text ? ` -- ${flat(r.comp_text)}` : "";
   const score = r.llm_score
-    ? `score: **${r.llm_score.score}** -- ${r.llm_score.rationale}`
+    ? `score: **${r.llm_score.score}** -- ${flat(r.llm_score.rationale)}`
     : `cheap score: ${r.cheap_score.toFixed(1)}`;
   const out = [
-    `### ${r.title} -- ${r.company} ${badge}`,
+    `### ${flat(r.title)} -- ${flat(r.company)} ${badge}`,
     `- ${score}`,
-    `- ${r.location || "location not given"}${comp}`,
-    `- ${r.url}`,
+    `- ${flat(r.location) || "location not given"}${comp}`,
+    `- ${flat(r.url)}`,
   ];
-  if (r.llm_score?.red_flags_spotted.length) out.push(`- red flags: ${r.llm_score.red_flags_spotted.join("; ")}`);
+  if (r.llm_score?.red_flags_spotted.length) out.push(`- red flags: ${r.llm_score.red_flags_spotted.map(flat).join("; ")}`);
   // The seen-store key, so `shortlist mark` reads a ticked box back without
   // re-deriving identity from the URL.
-  out.push("- [ ] tailor", `<!-- key: ${r.key} -->`, "");
+  out.push("- [ ] tailor", `<!-- key: ${flat(r.key)} -->`, "");
   return out;
 }

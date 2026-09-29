@@ -101,15 +101,10 @@ export function markShortlisted(
     const from = out[t.key]?.verdict;
     // A tick on an older digest must not walk a role back from tailored or applied.
     if (isRegression(from, "shortlisted")) {
-      skipped.push(`${t.title} (already ${from})`);
+      skipped.push(`${out[t.key]?.title ?? t.key} (already ${from})`);
       continue;
     }
-    out = mergeInto(out, t.key, {
-      verdict: "shortlisted",
-      shortlisted_at: now.toISOString(),
-      url: t.url ?? out[t.key]?.url,
-      title: t.title || out[t.key]?.title,
-    });
+    out = mergeInto(out, t.key, { verdict: "shortlisted", shortlisted_at: now.toISOString() });
     marked++;
   }
   return { store: out, marked, skipped };

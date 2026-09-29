@@ -69,6 +69,7 @@ export function parseSeekSearch(html: string, pageUrl: string): RoleRow[] | null
 export function parseSeekJob(html: string): string | null {
   const at = html.indexOf(JD_MARKER);
   if (at < 0) return null;
-  const block = html.slice(html.indexOf(">", at) + 1).split(/<section\b|data-automation="/)[0];
+  // Stop at the next section, or at the start of the next tag Seek marks.
+  const block = html.slice(html.indexOf(">", at) + 1).split(/<section\b|<[^<>]*\bdata-automation="/)[0];
   return stripHtml(block) || null;
 }

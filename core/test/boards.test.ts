@@ -125,3 +125,13 @@ test("parseSeekSearch reads the blob when the script closes on the same line", (
   const html = `<script>window.SEEK_REDUX_DATA = ${JSON.stringify({ results: { results: { jobs: [JOB] } } })};</script>`;
   strictEqual(parseSeekSearch(html, "https://nz.seek.com/x")!.length, 1);
 });
+
+test("anchorRows skips tel: and javascript: links", () => {
+  const html = '<a href="tel:+6441234567">Call an engineer</a><a href="javascript:void(0)">Engineer</a>';
+  deepStrictEqual(anchorRows(html, "https://example.test/careers", "Example Corp", ["engineer"]), []);
+});
+
+test("parseSeekJob stops at the next marked block even outside a section", () => {
+  const html = '<div data-automation="jobAdDetails"><p>Own the payments API.</p></div><div data-automation="company-profile">Example Corp makes invoices.</div>';
+  strictEqual(parseSeekJob(html), "Own the payments API.");
+});

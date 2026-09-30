@@ -38,12 +38,13 @@ repositories you name, and returns READY, NEEDS-FIXES or BLOCKED.
 You need Node 20 or later and a POSIX shell (macOS, Linux, or WSL on Windows).
 
 ```sh
-git clone https://github.com/robinslange/shortlist.git
-cd shortlist
-npm install && npm run build && npm link
+npm install -g shortlist-cli
 shortlist init ~/job-search
 cd ~/job-search
 ```
+
+To work from source instead, clone the repository and run
+`npm install && npm run build && npm link` in it.
 
 `init` copies a working example into the folder: a config, a profile, a
 company list, a sample CV, the four prompts and the default voice rules. It

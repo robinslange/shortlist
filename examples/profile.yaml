@@ -2,10 +2,10 @@
 # role_shapes, must_have_any, red_flags and locations; the scoring prompt
 # reads candidate.
 #
-# Every term matches whole words, ignoring case: "api" does not match
-# "capital", and "java" does not match "javascript". End a term with * to
-# match the start of a word: "engineer*" matches "engineers" and
-# "engineering".
+# Every term matches whole words and their common endings, ignoring case:
+# "engineer" matches "engineers" and "engineering", but "api" does not match
+# "capital" and "java" does not match "javascript". End a term with * to match
+# any word that starts with it: "dev*" matches "developer" and "devops".
 
 candidate:
   name: Sam Rivera
@@ -25,12 +25,12 @@ role_shapes:
   - id: senior
     keywords: [senior, staff, principal, lead]
     weight: 1
-    must_have_signals: [engineer*, developer*]
+    must_have_signals: [engineer, developer]
 
 # Every entry must match at least one of its words, or the role is rejected.
 must_have_any:
   - signal: engineering role
-    any_of: [engineer*, developer*, programmer*]
+    any_of: [engineer, developer, programmer]
 
 red_flags: [unpaid, commission only, security clearance required]
 

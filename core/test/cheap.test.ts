@@ -92,3 +92,14 @@ test("locations.accept keeps only roles whose location names an accepted place",
     "a city named in the text does not make the role located there",
   );
 });
+
+test("a plain term also matches its common word endings, still whole-word at the start", () => {
+  const p = base({ role_shapes: [{ id: "s", keywords: ["engineer", "api"], weight: 1 }], red_flags: ["java"] });
+  for (const title of ["Engineering Lead", "Engineers wanted", "Senior Engineer", "APIs team"]) {
+    strictEqual(cheapScore(row({ title, jd_text: "" }), p).kind, "accepted", title);
+  }
+  for (const title of ["Capital markets", "Reengineering office"]) {
+    deepStrictEqual(cheapScore(row({ title, jd_text: "" }), p), { kind: "rejected", reason: "no_role_shape_match" }, title);
+  }
+  strictEqual(cheapScore(row({ title: "Engineer", jd_text: "JavaScript all day." }), p).kind, "accepted", "java still is not javascript");
+});

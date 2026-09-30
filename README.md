@@ -36,9 +36,10 @@ repositories you name, and returns READY, NEEDS-FIXES or BLOCKED.
 ## Install
 
 You need Node 20 or later and a POSIX shell (macOS, Linux, or WSL on Windows).
-Clone this repository, then:
 
 ```sh
+git clone https://github.com/robinslange/shortlist.git
+cd shortlist
 npm install && npm run build && npm link
 shortlist init ~/job-search
 cd ~/job-search
@@ -120,10 +121,11 @@ Values are passed to your commands as environment variables, never pasted into
 the command text, so a URL from a job board cannot run shell code.
 
 `profile.yaml` drives the free filter that runs before any model sees a role.
-Every term matches whole words, ignoring case, so `api` does not match
+Every term matches whole words and their common endings, ignoring case:
+`engineer` matches "engineers" and "engineering", while `api` does not match
 "capital" and a red flag of `java` does not reject JavaScript roles. End a term
-with `*` to match the start of a word: `engineer*` matches "engineers" and
-"engineering". `locations.accept` keeps only roles whose location names one of
+with `*` to match any word that starts with it: `dev*` matches "developer" and
+"devops". `locations.accept` keeps only roles whose location names one of
 your places; `locations.reject` drops any role that mentions one of its terms.
 
 `voice/default/` holds six rules for prose that does not read as

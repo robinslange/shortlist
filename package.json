@@ -4,6 +4,12 @@
   "description": "Source roles from company ATS boards, tailor a CV and cover letter, and verify every claim in a fresh context.",
   "license": "Apache-2.0",
   "author": "Robin Lange",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robinslange/shortlist.git"
+  },
+  "homepage": "https://github.com/robinslange/shortlist#readme",
+  "bugs": "https://github.com/robinslange/shortlist/issues",
   "type": "module",
   "bin": {
     "shortlist": "dist/core/src/cli.js"

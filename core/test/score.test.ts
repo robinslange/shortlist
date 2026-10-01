@@ -2,7 +2,7 @@ import { test } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { MAX_SURVIVORS, runScore } from "../src/score/run.ts";
+import { MAX_PAGE_FETCHES, MAX_SURVIVORS, runScore } from "../src/score/run.ts";
 import type { Profile, RoleRow, SeenEntry } from "../src/types.ts";
 
 const now = new Date("2026-09-28T00:00:00Z");
@@ -136,7 +136,7 @@ test("score says how many job pages it is about to fetch", async () => {
     {},
     { ...noFetch, fetchPage: async () => JOB_PAGE, log: (l) => void lines.push(l) },
   );
-  deepStrictEqual(lines, ["fetching 2 job pages for full descriptions"]);
+  deepStrictEqual(lines, ["fetching up to 2 job pages for full descriptions"]);
 });
 
 test("score counts why roles were filtered, so an empty result explains itself", async () => {
@@ -147,4 +147,41 @@ test("score counts why roles were filtered, so an empty result explains itself",
     noFetch,
   );
   deepStrictEqual(r.reasons, { "red flag": 2, "no role shape match": 1 });
+});
+
+const stack = { ...profile, must_have_any: [{ signal: "stack", any_of: ["postgres"] }] };
+const seekRow = (id: string, jd_text = "Engineer teaser.") =>
+  row(id, { source: "seek", external_id: id, url: `https://nz.seek.com/job/${id}`, jd_text });
+
+test("a board teaser that never names the stack is judged on its full page", async () => {
+  const r = await runScore([seekRow("1")], stack, {}, { ...noFetch, fetchPage: async () => JOB_PAGE });
+  deepStrictEqual(r.survivors.map((s) => s.key), ["seek:1"]);
+  ok(r.survivors[0].jd_text.includes("Postgres"));
+});
+
+test("a board role whose full page lacks the stack is filtered and frees its slot", async () => {
+  const rows = [seekRow("1"), ...Array.from({ length: MAX_SURVIVORS }, (_, i) => row(String(i), { jd_text: "Engineer, Postgres." }))];
+  const miss = await runScore(rows, stack, {}, { ...noFetch, fetchPage: async () => JOB_PAGE.replace("Postgres", "") });
+  strictEqual(miss.seen["seek:1"].reason, "missing_must_have: stack");
+  strictEqual(miss.survivors.length, MAX_SURVIVORS);
+  ok(miss.survivors.every((s) => s.source === "greenhouse"));
+});
+
+test("a red flag on the full page filters a board role its teaser hid", async () => {
+  const r = await runScore([seekRow("1")], profile, {}, { ...noFetch, fetchPage: async () => JOB_PAGE.replace("Go", "Java") });
+  strictEqual(r.seen["seek:1"].reason, "red_flag: java");
+  strictEqual(r.survivors.length, 0);
+});
+
+test(`job page fetches stop at ${MAX_PAGE_FETCHES}`, async () => {
+  let fetches = 0;
+  const rows = Array.from({ length: MAX_PAGE_FETCHES + 1 }, (_, i) => seekRow(String(i)));
+  const r = await runScore(rows, stack, {}, { ...noFetch, fetchPage: async () => (fetches++, JOB_PAGE.replace("Postgres", "")) });
+  strictEqual(fetches, MAX_PAGE_FETCHES);
+  strictEqual(r.reasons["over page budget"], 1);
+});
+
+test("without a fetcher, a board teaser is not held to the stack it cannot show", async () => {
+  const r = await runScore([seekRow("1")], stack, {}, noFetch);
+  deepStrictEqual(r.survivors.map((s) => s.key), ["seek:1"]);
 });

@@ -1,8 +1,8 @@
 // Pure: ATS endpoint table and response normalisers. All IO is injected.
 
-import { XMLParser } from "fast-xml-parser";
 import { decodeEntities, stripHtml } from "../text.ts";
 import type { AtsKind, RoleRow } from "../types.ts";
+import { all, parseXml, textAt } from "./xml.ts";
 
 export type DispatchCtx = { slug: string; company: string };
 
@@ -263,27 +263,25 @@ export function normalise(ats: AtsKind, payload: unknown, ctx: DispatchCtx): Rol
       }));
 
     case "personio": {
-      const parser = new XMLParser({
-        ignoreAttributes: true,
-        parseTagValue: false,
-        isArray: (name) => ["position", "jobDescription", "office"].includes(name),
-      });
-      const doc = parser.parse(String(payload));
-      return asArray(doc?.["workzag-jobs"]?.position).map((j: any) => {
+      return all(parseXml(String(payload)), "workzag-jobs", "position").map((j) => {
         // jobDescriptions is empty on many tenants. Degrade, never drop the row.
-        const desc = asArray(j.jobDescriptions?.jobDescription)
-          .map((d: any) => [d?.name, d?.value].filter(Boolean).join("\n"))
+        const desc = all(j, "jobDescriptions", "jobDescription")
+          .map((d) => [textAt(d, "name"), textAt(d, "value")].filter(Boolean).join("\n"))
           .join("\n\n");
-        const offices = [j.office, ...asArray(j.additionalOffices?.office)].flat().filter(Boolean);
+        const offices = [...all(j, "office"), ...all(j, "additionalOffices", "office")]
+          .map((o) => o.text.trim())
+          .filter(Boolean);
+        const id = textAt(j, "id");
         return {
           ...base,
-          external_id: `${ctx.slug}:${j.id}`,
-          title: j.name ?? "",
+          external_id: `${ctx.slug}:${id}`,
+          title: textAt(j, "name"),
           location: offices.join(", "),
-          url: `https://${ctx.slug}.jobs.personio.de/job/${j.id}`,
-          posted_at: j.createdAt || undefined,
+          url: `https://${ctx.slug}.jobs.personio.de/job/${id}`,
+          posted_at: textAt(j, "createdAt") || undefined,
           jd_text:
-            stripHtml(desc) || [j.name, j.department, j.seniority, j.schedule].filter(Boolean).join(" "),
+            stripHtml(desc) ||
+            ["name", "department", "seniority", "schedule"].map((k) => textAt(j, k)).filter(Boolean).join(" "),
         };
       });
     }

@@ -12,6 +12,7 @@ import {
   parseBody,
   workdayParts,
 } from "../src/ats/dispatch.ts";
+import { decodeXml } from "../src/ats/xml.ts";
 import type { AtsKind } from "../src/types.ts";
 
 const raw = (name: string) => readFileSync(resolve("core/test/fixtures/ats-api", name), "utf8");
@@ -169,6 +170,55 @@ test("personio keeps a role whose tenant publishes no description, using its nam
   const [row] = normalise("personio", xml, { slug: "examplecorp", company: "Example Corp" });
   strictEqual(row.jd_text, "Platform Engineer Engineering");
   strictEqual(row.location, "Wellington");
+});
+
+test("personio decodes entities in text and keeps CDATA literal", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE workzag-jobs>
+<!-- feed generated <position> -->
+<workzag-jobs xmlns:x="urn:x">
+<position id="ignored">
+  <id>42</id>
+  <office>Z&#252;rich</office>
+  <additionalOffices><office/><office>M&#xFC;nchen &amp; Remote</office></additionalOffices>
+  <department>R&amp;D</department>
+  <name>Engineer &lt;Platform&gt; &quot;Core&quot; &apos;Infra&apos; &amp;lt;literal&amp;gt; &#128187;</name>
+  <jobDescriptions>
+    <jobDescription>
+      <name>Tom &amp; Jerry</name>
+      <value>
+        <![CDATA[<p>Use a < b && c > d, write &amp; as-is, end with ]] here</p>]]>
+      </value>
+    </jobDescription>
+    <jobDescription><name>Second</name><value>&lt;p&gt;escaped HTML&lt;/p&gt;</value></jobDescription>
+  </jobDescriptions>
+  <keywords/>
+  <createdAt>2026-09-20T01:00:00+00:00</createdAt>
+</position>
+<position><id>43</id><name>Second role</name></position>
+</workzag-jobs>`;
+  const rows = normalise("personio", xml, { slug: "examplecorp", company: "Example Corp" });
+  strictEqual(rows.length, 2);
+  const [row] = rows;
+  strictEqual(row.external_id, "examplecorp:42");
+  strictEqual(row.title, `Engineer <Platform> "Core" 'Infra' &lt;literal&gt; \u{1F4BB}`);
+  strictEqual(row.location, "Zürich, München & Remote");
+  strictEqual(row.posted_at, "2026-09-20T01:00:00+00:00");
+  strictEqual(row.jd_text, "Tom & Jerry\nUse a < b && c > d, write & as-is, end with ]] here\n\nSecond\nescaped HTML");
+  strictEqual(rows[1].title, "Second role");
+  strictEqual(rows[1].jd_text, "Second role");
+});
+
+test("a bare < in malformed text stays text and does not swallow the tags after it", () => {
+  const xml = "<workzag-jobs><position><id>9</id><name>a <b c</name><department>Eng</department></position></workzag-jobs>";
+  const [row] = normalise("personio", xml, { slug: "examplecorp", company: "Example Corp" });
+  strictEqual(row.title, "a <b c");
+  strictEqual(row.jd_text, "a <b c Eng");
+});
+
+test("decodeXml decodes once and leaves what it does not know", () => {
+  strictEqual(decodeXml("&amp;amp; &#38;lt; &#x26;"), "&amp; &lt; &");
+  strictEqual(decodeXml("&nbsp; &AMP; &#x110000; & alone"), "&nbsp; &AMP; &#x110000; & alone");
 });
 
 test("empty or unexpected payloads normalise to no rows", () => {

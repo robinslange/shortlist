@@ -20,4 +20,7 @@ Run every command from the user's shortlist workspace, the directory holding
 
 Do not edit `profile.yaml` or `companies.yaml` yourself (`shortlist source`
 writes detected `ats` and `slug` values on its own). If the scores look wrong,
-say which profile field looks responsible and let the user change it.
+say which profile field looks responsible and let the user change it. If
+`source` says a company's board was not found, or a company returns nothing,
+run `shortlist detect-ats <careers_url>` (it writes nothing) and tell the user
+which ATS and slug the page links to now.

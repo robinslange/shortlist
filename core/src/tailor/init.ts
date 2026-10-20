@@ -7,7 +7,7 @@ import type { Fetcher } from "../io.ts";
 import { localDate, looksBlocked, slugify } from "../text.ts";
 import type { SeenStore } from "../types.ts";
 
-export type TailorTarget = { key: string; url: string; title?: string; company?: string };
+type TailorTarget = { key: string; url: string; title?: string; company?: string };
 
 export type ApplicationMeta = TailorTarget & { cv_source: string | null; created: string };
 

@@ -49,7 +49,7 @@ export function seenKey(source: string, externalId: string): string {
   return `${source}:${externalId}`;
 }
 
-export function mergeEntry(prev: SeenEntry | undefined, patch: Partial<SeenEntry>): SeenEntry {
+function mergeEntry(prev: SeenEntry | undefined, patch: Partial<SeenEntry>): SeenEntry {
   return {
     first_seen: prev?.first_seen ?? new Date().toISOString(),
     last_score: prev?.last_score ?? null,

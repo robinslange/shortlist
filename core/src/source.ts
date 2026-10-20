@@ -13,9 +13,9 @@ import { seenKey } from "./seen.ts";
 import { looksBlocked, slugify } from "./text.ts";
 import type { AtsKind, Company, DetectorResult, Profile, RoleRow, SourceSummary } from "./types.ts";
 
-export const SEEK_MAX_PAGES = 25;
+const SEEK_MAX_PAGES = 25;
 
-export type SourceDeps = {
+type SourceDeps = {
   http: Http;
   fetchPage: Fetcher | null;
   sleep: (ms: number) => Promise<void>;
@@ -25,7 +25,7 @@ export type SourceDeps = {
 
 const roles = (n: number) => `${n} role${n === 1 ? "" : "s"}`;
 
-export type SourceResult = {
+type SourceResult = {
   rows: RoleRow[];
   summary: SourceSummary;
   detections: Array<{ index: number; result: DetectorResult }>;

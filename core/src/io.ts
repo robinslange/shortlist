@@ -7,7 +7,7 @@
 import { spawn } from "node:child_process";
 import type { Endpoint } from "./ats/dispatch.ts";
 
-export type ShellResult = { code: number; stdout: string; stderr: string; timedOut: boolean };
+type ShellResult = { code: number; stdout: string; stderr: string; timedOut: boolean };
 
 // With a timeout, the command runs in its own process group so a hung fetcher
 // and anything it spawned are all stopped, not just the shell.
@@ -40,7 +40,7 @@ export function runShell(cmd: string, env: Record<string, string>, cwd: string, 
 
 export type Fetcher = (url: string) => Promise<string>;
 
-export const FETCH_TIMEOUT_MS = 60_000;
+const FETCH_TIMEOUT_MS = 60_000;
 
 export function makeFetcher(command: string | null, cwd: string, timeoutMs = FETCH_TIMEOUT_MS): Fetcher | null {
   if (!command) return null;
@@ -52,7 +52,7 @@ export function makeFetcher(command: string | null, cwd: string, timeoutMs = FET
   };
 }
 
-export type HttpResponse = { status: number; body: string };
+type HttpResponse = { status: number; body: string };
 export type Http = (ep: Endpoint) => Promise<HttpResponse>;
 
 export const http: Http = async (ep) => {

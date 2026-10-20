@@ -9,7 +9,7 @@ import { parse, parseDocument } from "yaml";
 import { ATS_KINDS } from "./types.ts";
 import type { Company, DetectorResult, Profile } from "./types.ts";
 
-export class ConfigError extends Error {}
+class ConfigError extends Error {}
 
 export type Config = {
   dir: string;

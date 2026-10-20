@@ -23,7 +23,7 @@ export type DetectorResult = {
   secondary?: Array<{ ats: AtsKind; slug: string }>;
 };
 
-export type RoleShape = {
+type RoleShape = {
   id: string;
   keywords: string[];
   weight: number;

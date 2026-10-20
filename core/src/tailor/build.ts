@@ -5,7 +5,7 @@ import { readJson } from "../files.ts";
 import { runShell } from "../io.ts";
 import type { ApplicationMeta } from "./init.ts";
 
-export type BuildResult = { ran: boolean; code: number; stderr: string; missing: string[] };
+type BuildResult = { ran: boolean; code: number; stderr: string; missing: string[] };
 
 export async function buildCv(folder: string, config: Config): Promise<BuildResult> {
   if (!config.cv.build) return { ran: false, code: 0, stderr: "", missing: [] };

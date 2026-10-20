@@ -15,9 +15,9 @@ export const MAX_SURVIVORS = 30;
 // no survivor slot, so their fetches are capped separately.
 export const MAX_PAGE_FETCHES = 2 * MAX_SURVIVORS;
 
-export type ScoreDeps = { fetchPage: Fetcher | null; sleep: (ms: number) => Promise<void>; now: Date; log: (line: string) => void };
+type ScoreDeps = { fetchPage: Fetcher | null; sleep: (ms: number) => Promise<void>; now: Date; log: (line: string) => void };
 
-export type ScoreResult = {
+type ScoreResult = {
   survivors: Survivor[];
   seen: SeenStore;
   dropped: number;

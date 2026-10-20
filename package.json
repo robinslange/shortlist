@@ -22,7 +22,8 @@
     "prompts",
     "voice",
     "adapters",
-    "examples"
+    "examples",
+    "NOTICE"
   ],
   "engines": {
     "node": ">=20"

@@ -58,7 +58,9 @@ Then make it yours:
   role out. The comments at the top explain how terms match.
 - `companies.yaml`: the companies you want to work for. Give each a
   `careers_url`; with a fetcher configured, `shortlist source` works out which
-  ATS it uses and writes that back.
+  ATS it uses and writes that back. `shortlist detect-ats <careers_url>`
+  shows what it would find for one company without writing anything, which
+  is handy before adding a company or when one comes back stale.
 - `cv/cv.md`: replace the sample with your own CV, in any text format.
 - `shortlist.yaml`: where your CV is, and optionally how to build it.
 

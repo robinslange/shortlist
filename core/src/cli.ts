@@ -16,7 +16,7 @@ import { initWorkspace } from "./init.ts";
 import { http, makeFetcher, sleep } from "./io.ts";
 import { runScore } from "./score/run.ts";
 import { isVerdict, markShortlisted, mergeInto, recordScores, setVerdict } from "./seen.ts";
-import { runSource } from "./source.ts";
+import { page, runSource } from "./source.ts";
 import { buildCv } from "./tailor/build.ts";
 import { bundleEvidence } from "./tailor/evidence.ts";
 import { initApplication, resolveTarget } from "./tailor/init.ts";
@@ -103,11 +103,20 @@ const COMMANDS: Record<string, Command> = {
   },
 
   "detect-ats": {
-    usage: "detect-ats <html-file>",
-    summary: "Print the ATS and slug a saved careers page links to, as JSON, or null.",
-    run: async (args) => {
-      if (!args[0]) return usageError("detect-ats <html-file>");
-      process.stdout.write(JSON.stringify(detectAts(readText(args[0]))) + "\n");
+    usage: "detect-ats <url|file>",
+    summary: "Print the ATS and slug a careers page links to, as JSON, or null. Changes nothing.",
+    help: `Uses the same detection as \`shortlist source\`, without running a source pass.
+Check a company before adding it to companies.yaml, or find out why one fell
+back to scraping links or went stale. A URL is fetched with the fetch command
+in shortlist.yaml; a saved HTML file needs no fetcher. Other boards the page
+links to are listed under "secondary". null means no known ATS, and source
+would scrape the page's role links instead.`,
+    run: async (args, ws) => {
+      if (!args[0]) return usageError("detect-ats <url|file>");
+      const html = /^https?:\/\//.test(args[0])
+        ? await page(makeFetcher(loadConfig(ws).fetch, ws), args[0])
+        : readText(args[0]);
+      process.stdout.write(JSON.stringify(detectAts(html)) + "\n");
       return 0;
     },
   },

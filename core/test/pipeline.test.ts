@@ -207,6 +207,37 @@ test("detect-ats reads a saved careers page", () => {
   deepStrictEqual(JSON.parse(r.stdout), { ats: "lever", slug: "example-limited" });
 });
 
+test("detect-ats fetches a careers URL through the configured fetcher and changes nothing", () => {
+  const ws = workspace();
+  writeFileSync(join(ws, "careers.html"), '<a href="https://jobs.lever.co/example-limited">Jobs</a> <a href="https://boards.greenhouse.io/examplecorp">More</a>');
+  const companies = readFileSync(join(ws, "companies.yaml"), "utf8");
+  const r = run(ws, "detect-ats", "https://plain.test/careers");
+  strictEqual(r.status, 0, r.stderr);
+  deepStrictEqual(JSON.parse(r.stdout), {
+    ats: "lever",
+    slug: "example-limited",
+    secondary: [{ ats: "greenhouse", slug: "examplecorp" }],
+  });
+  strictEqual(readFileSync(join(ws, "companies.yaml"), "utf8"), companies);
+  ok(!existsSync(join(ws, "candidates.json")));
+});
+
+test("detect-ats refuses a bot-check page instead of reporting no ATS", () => {
+  const ws = workspace();
+  writeFileSync(join(ws, "careers.html"), "<html><title>Just a moment...</title></html>");
+  const r = run(ws, "detect-ats", "https://plain.test/careers");
+  strictEqual(r.status, 1);
+  match(r.stderr, /blocked at https:\/\/plain\.test\/careers \(bot check\)/);
+});
+
+test("detect-ats on a URL without a fetcher says so", () => {
+  const ws = workspace();
+  writeFileSync(join(ws, "shortlist.yaml"), "cv:\n  source: ./cv.md\n");
+  const r = run(ws, "detect-ats", "https://plain.test/careers");
+  strictEqual(r.status, 1);
+  match(r.stderr, /no fetcher configured/);
+});
+
 test("every command that needs an argument exits 2 without one", () => {
   const ws = mkdtempSync(join(tmpdir(), "shortlist-usage-"));
   for (const args of [["detect-ats"], ["set"], ["set", "k"], ["mark"], ["tailor", "init"], ["cv", "build"], ["evidence", "bundle"]]) {

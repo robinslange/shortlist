@@ -33,9 +33,10 @@ export type SourceResult = {
 
 const message = (e: unknown) => (e as Error).message;
 
-async function page(deps: SourceDeps, url: string): Promise<string> {
-  if (!deps.fetchPage) throw new Error("no fetcher configured");
-  const html = await deps.fetchPage(url);
+// A page fetched through the configured fetcher, refused if it is a bot check.
+export async function page(fetchPage: Fetcher | null, url: string): Promise<string> {
+  if (!fetchPage) throw new Error("no fetcher configured");
+  const html = await fetchPage(url);
   if (looksBlocked(html)) throw new Error(`blocked at ${url} (bot check)`);
   return html;
 }
@@ -64,7 +65,7 @@ export async function runSource(companies: Company[], profile: Profile, deps: So
       try {
         const rows =
           target.ats === "bespoke"
-            ? anchorRows(await page(deps, c.careers_url), c.careers_url, c.name, keywords)
+            ? anchorRows(await page(deps.fetchPage, c.careers_url), c.careers_url, c.name, keywords)
             : await apiRows(target.ats, { slug: target.slug, company: c.name }, deps, out);
         out.rows.push(...rows);
         out.summary.counts.companies += rows.length;
@@ -75,7 +76,7 @@ export async function runSource(companies: Company[], profile: Profile, deps: So
     }
     const errors = out.summary.errors.slice(errorsBefore);
     for (const e of errors) deps.log(e);
-    if (out.summary.stale.length > staleBefore) deps.log(`${c.name}: board not found; blank ats and slug in companies.yaml to detect it again`);
+    if (out.summary.stale.length > staleBefore) deps.log(`${c.name}: board not found; \`shortlist detect-ats ${c.careers_url}\` shows what the page links to now. blank ats and slug in companies.yaml to detect it again`);
     else if (found > 0 || errors.length === 0) deps.log(`${c.name}: ${roles(found)}`);
     await deps.sleep(politeDelay());
   }
@@ -92,7 +93,7 @@ type Target = { ats: AtsKind; slug: string };
 async function resolveTargets(c: Company, index: number, deps: SourceDeps, out: SourceResult): Promise<Target[]> {
   if (c.ats === "bespoke") return [{ ats: "bespoke", slug: c.slug ?? slugify(c.name) }];
   if (c.ats && c.slug) return [{ ats: c.ats, slug: c.slug }, ...(c.secondary_ats ?? [])];
-  const found = detectAts(await page(deps, c.careers_url));
+  const found = detectAts(await page(deps.fetchPage, c.careers_url));
   if (!found) return [{ ats: "bespoke", slug: slugify(c.name) }];
   out.detections.push({ index, result: found });
   return [{ ats: found.ats, slug: found.slug }, ...(found.secondary ?? [])];
@@ -142,7 +143,7 @@ async function seekRows(urls: string[], deps: SourceDeps, out: SourceResult): Pr
       const url = seekPageUrl(base, n);
       let html: string;
       try {
-        html = await page(deps, url);
+        html = await page(deps.fetchPage, url);
       } catch (e) {
         fail(`seek: ${message(e)}`);
         return;

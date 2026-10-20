@@ -7,7 +7,10 @@ pipeline stops at files on disk for the user to review.
 
 ## Finding roles
 
-1. `shortlist source`
+1. `shortlist source`. If it says a company's board was not found, or a
+   company you expected roles from has none, run
+   `shortlist detect-ats <careers_url>` and tell the user what it found. It
+   writes nothing.
 2. `shortlist score`
 3. Follow `prompts/01-score.md`. It writes `scores.json`.
 4. `shortlist digest`, then tell the user the digest path. They tick

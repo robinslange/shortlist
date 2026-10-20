@@ -107,27 +107,13 @@ application folder yet.
 
 ## Configuration
 
-`shortlist.yaml` holds three escape hatches, all shell commands or paths:
+`shortlist.yaml` and `profile.yaml` explain every key in their comments. Two
+things the comments do not say:
 
-- `fetch`: a command that prints the page at `$URL`. The example uses `curl`.
-  Use a browser-based fetcher if a site blocks it. Each page gets 60 seconds. Without `fetch`, the ATS
-  APIs still work; ATS detection, Seek and `tailor init` report that no
-  fetcher is configured.
-- `cv.source` and `cv.build`: your master CV, and a command run inside each
-  application folder with `$SOURCE` and `$FOLDER` set. Typst, LaTeX, pandoc,
-  anything. Without `cv.build`, the tailored source file is the deliverable.
-- `evidence.repos`: directories the verifier may read as ground truth.
-
-Values are passed to your commands as environment variables, never pasted into
-the command text, so a URL from a job board cannot run shell code.
-
-`profile.yaml` drives the free filter that runs before any model sees a role.
-Every term matches whole words and their common endings, ignoring case:
-`engineer` matches "engineers" and "engineering", while `api` does not match
-"capital" and a red flag of `java` does not reject JavaScript roles. End a term
-with `*` to match any word that starts with it: `dev*` matches "developer" and
-"devops". `locations.accept` keeps only roles whose location names one of
-your places; `locations.reject` drops any role that mentions one of its terms.
+- Without `fetch`, the ATS APIs still work; ATS detection, Seek and
+  `tailor init` report that no fetcher is configured.
+- Values are passed to your commands as environment variables, never pasted
+  into the command text, so a URL from a job board cannot run shell code.
 
 `voice/default/` holds six rules for prose that does not read as
 machine-written. Put your own in `voice/yours/`.
@@ -148,6 +134,7 @@ the fetch command you configure. Your agent is a different matter: when it
 runs a prompt, your CV, your profile and your voice rules go to whichever model
 the agent uses, under that provider's terms.
 
-## License
+## About
 
-Apache 2.0. See `LICENSE`.
+shortlist is built and maintained by [omit](https://omit.nz). Apache 2.0; see
+`LICENSE`.

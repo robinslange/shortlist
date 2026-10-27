@@ -25,7 +25,8 @@ export function seekPageUrl(base: string, n: number): string {
 }
 
 // null means the results data is missing or unparseable: the page format
-// changed or the fetcher got something other than a results page.
+// changed or the fetcher got something other than a results page. A page past
+// the last one is a zero-results page with jobs: null, which is an empty page.
 export function parseSeekSearch(html: string, pageUrl: string): RoleRow[] | null {
   const at = html.indexOf(DATA_MARKER);
   if (at < 0) return null;
@@ -38,7 +39,8 @@ export function parseSeekSearch(html: string, pageUrl: string): RoleRow[] | null
 
   let jobs: any;
   try {
-    jobs = JSON.parse(blob)?.results?.results?.jobs;
+    const results = JSON.parse(blob)?.results?.results;
+    jobs = results?.isZeroResults ? [] : results?.jobs;
   } catch {
     return null;
   }

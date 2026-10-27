@@ -125,6 +125,21 @@ test("seek pages until an empty page and dedupes across pages", async () => {
   strictEqual(r.summary.counts.seek, 4);
 });
 
+test("Seek's past-the-end page ends that search and the next one still runs", async () => {
+  const a = "https://nz.seek.com/a-jobs";
+  const b = "https://nz.seek.com/b-jobs";
+  const pastEnd =
+    "<script>\nwindow.SEEK_REDUX_DATA = " +
+    JSON.stringify({ results: { totalCount: 1, results: { isZeroResults: true, jobs: null } } }) +
+    ";\n</script>";
+  const r = await runSource([], profile([a, b]), deps(httpFrom({}), pagesFrom({
+    [a]: seekPage(["1"]), [`${a}?page=2`]: pastEnd,
+    [b]: seekPage(["2"]), [`${b}?page=2`]: pastEnd,
+  })));
+  deepStrictEqual(r.rows.map((x) => x.external_id), ["1", "2"]);
+  deepStrictEqual(r.summary.errors, []);
+});
+
 test("a blocked seek page stops seek and says so", async () => {
   const base = "https://nz.seek.com/engineer-jobs";
   const r = await runSource([], profile([base]), deps(httpFrom({}), pagesFrom({ [base]: "<title>Access Denied</title>" })));
